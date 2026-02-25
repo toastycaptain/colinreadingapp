@@ -1,0 +1,19 @@
+.DS_Store
+
+# Terraform
+infra/**/.terraform/*
+infra/**/*.tfstate
+infra/**/*.tfstate.backup
+infra/**/.terraform.lock.hcl
+
+# Rails backend runtime artifacts
+backend/log/*
+backend/tmp/*
+backend/storage/*
+!backend/log/.keep
+!backend/tmp/.keep
+!backend/tmp/pids/.keep
+!backend/storage/.keep
+
+# macOS/Xcode
+ios/.DS_Store

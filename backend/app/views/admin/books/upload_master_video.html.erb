@@ -1,0 +1,113 @@
+<div class="panel">
+  <h3>Upload Master Video</h3>
+  <p>
+    Book: <strong><%= @book.title %></strong> (ID: <%= @book.id %>)
+  </p>
+  <p>
+    This uploads the master video directly to S3 using a presigned form,
+    then registers the uploaded key and enqueues MediaConvert processing.
+  </p>
+
+  <div style="margin-bottom: 12px;">
+    <label for="master-video-file">Choose video file</label><br>
+    <input id="master-video-file" type="file" accept="video/*" />
+  </div>
+
+  <button id="upload-master-video-btn" class="button">Upload and Trigger Processing</button>
+  <p id="upload-status" style="margin-top: 12px;"></p>
+
+  <p style="margin-top: 16px;">
+    <%= link_to "Back to Book", admin_book_path(@book), class: "button" %>
+  </p>
+</div>
+
+<script>
+  (function() {
+    const button = document.getElementById("upload-master-video-btn");
+    const fileInput = document.getElementById("master-video-file");
+    const status = document.getElementById("upload-status");
+    const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
+    const bookId = <%= @book.id %>;
+
+    if (!button || !fileInput || !status) return;
+
+    const setStatus = (text, isError = false) => {
+      status.textContent = text;
+      status.style.color = isError ? "#b91c1c" : "#166534";
+    };
+
+    button.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        setStatus("Select a video file first.", true);
+        return;
+      }
+
+      button.disabled = true;
+      setStatus("Requesting upload signature...");
+
+      try {
+        const signResponse = await fetch("/admin/api/v1/uploads/master_video", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: JSON.stringify({
+            book_id: bookId,
+            filename: file.name,
+            content_type: file.type || "video/mp4",
+          }),
+        });
+
+        if (!signResponse.ok) {
+          throw new Error(`Failed to request presigned upload (${signResponse.status})`);
+        }
+
+        const signed = await signResponse.json();
+        setStatus("Uploading to S3...");
+
+        const formData = new FormData();
+        Object.entries(signed.fields).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+        formData.append("file", file);
+
+        const uploadResponse = await fetch(signed.url, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!uploadResponse.ok && uploadResponse.status !== 201 && uploadResponse.status !== 204) {
+          throw new Error(`S3 upload failed (${uploadResponse.status})`);
+        }
+
+        setStatus("Registering upload and queuing MediaConvert...");
+
+        const registerResponse = await fetch(`/admin/api/v1/books/${bookId}/video_assets`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-CSRF-Token": csrfToken,
+          },
+          body: JSON.stringify({
+            master_s3_key: signed.key,
+          }),
+        });
+
+        if (!registerResponse.ok) {
+          throw new Error(`Video asset registration failed (${registerResponse.status})`);
+        }
+
+        const body = await registerResponse.json();
+        setStatus(`Success. Video asset #${body.id} created with status ${body.processing_status}.`);
+      } catch (error) {
+        setStatus(error.message || "Upload failed", true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  })();
+</script>
