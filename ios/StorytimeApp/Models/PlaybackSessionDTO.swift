@@ -1,33 +1,13 @@
 import Foundation
 
-struct PlaybackCookieDTO: Codable, Hashable {
-    let name: String
-    let value: String
-    let domain: String
-    let path: String
-    let expires: String
-    let secure: Bool?
-    let httpOnly: Bool?
-
-    enum CodingKeys: String, CodingKey {
-        case name
-        case value
-        case domain
-        case path
-        case expires
-        case secure
-        case httpOnly = "http_only"
-    }
-}
-
 struct PlaybackSessionDTO: Codable {
-    let playbackManifestURL: String
-    let cookies: [PlaybackCookieDTO]
+    let playbackHlsURL: String
+    let playbackToken: String
     let expiresAt: String
 
     enum CodingKeys: String, CodingKey {
-        case playbackManifestURL = "playback_manifest_url"
-        case cookies
+        case playbackHlsURL = "playback_hls_url"
+        case playbackToken = "playback_token"
         case expiresAt = "expires_at"
     }
 }

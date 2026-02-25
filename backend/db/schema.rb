@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_25_201709) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_25_210115) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -159,16 +159,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_25_201709) do
     t.bigint "book_id", null: false
     t.datetime "created_at", null: false
     t.integer "duration_seconds"
-    t.text "error_message"
-    t.string "hls_base_path"
-    t.string "hls_manifest_path"
-    t.string "master_s3_key", null: false
-    t.string "mediaconvert_job_id"
+    t.string "mux_asset_id"
+    t.text "mux_error_message"
+    t.string "mux_playback_id"
+    t.string "mux_upload_id"
+    t.integer "playback_policy", default: 1, null: false
     t.integer "processing_status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["book_id"], name: "index_video_assets_on_book_id", unique: true
-    t.index ["mediaconvert_job_id"], name: "index_video_assets_on_mediaconvert_job_id", unique: true
+    t.index ["mux_asset_id"], name: "index_video_assets_on_mux_asset_id", unique: true
+    t.index ["mux_upload_id"], name: "index_video_assets_on_mux_upload_id"
+    t.index ["playback_policy"], name: "index_video_assets_on_playback_policy"
     t.index ["processing_status"], name: "index_video_assets_on_processing_status"
+  end
+
+  create_table "webhook_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "event_id", null: false
+    t.string "event_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "processed_at"
+    t.string "provider", null: false
+    t.string "status", default: "received", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_webhook_events_on_event_type"
+    t.index ["processed_at"], name: "index_webhook_events_on_processed_at"
+    t.index ["provider", "event_id"], name: "index_webhook_events_on_provider_and_event_id", unique: true
   end
 
   add_foreign_key "books", "publishers"

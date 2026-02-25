@@ -15,6 +15,7 @@ final class PlayerViewModel: ObservableObject {
     private var heartbeatTimer: Timer?
     private var periodicTimeObserver: Any?
     private var notificationObservers: [NSObjectProtocol] = []
+    private var hasRetriedAfterFailure = false
 
     init(apiClient: APIClient) {
         self.apiClient = apiClient
@@ -29,6 +30,7 @@ final class PlayerViewModel: ObservableObject {
         currentBook = book
         currentChildID = childID
         errorMessage = nil
+        hasRetriedAfterFailure = false
 
         await requestSessionAndPlay(resumeFromSeconds: nil, eventType: "play_start")
     }
@@ -80,13 +82,9 @@ final class PlayerViewModel: ObservableObject {
 
         do {
             let session = try await apiClient.createPlaybackSession(childID: childID, bookID: book.id)
-            CookieInstaller.install(session.cookies)
+            let playbackURL = try buildPlaybackURL(from: session)
 
-            guard let manifestURL = URL(string: session.playbackManifestURL) else {
-                throw APIError.transport("Invalid manifest URL")
-            }
-
-            let item = AVPlayerItem(url: manifestURL)
+            let item = AVPlayerItem(url: playbackURL)
             player.replaceCurrentItem(with: item)
             observePlayerItem(item)
             observeTimeUpdates()
@@ -157,8 +155,30 @@ final class PlayerViewModel: ObservableObject {
     }
 
     private func refreshSessionAfterFailure() async {
+        guard !hasRetriedAfterFailure else {
+            errorMessage = "Playback failed after retry. Please try again."
+            return
+        }
+
+        hasRetriedAfterFailure = true
         let resumePosition = currentPositionSeconds
         await requestSessionAndPlay(resumeFromSeconds: resumePosition, eventType: "resume")
+    }
+
+    private func buildPlaybackURL(from session: PlaybackSessionDTO) throws -> URL {
+        guard var components = URLComponents(string: session.playbackHlsURL) else {
+            throw APIError.transport("Invalid playback URL")
+        }
+
+        var queryItems = components.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "token", value: session.playbackToken))
+        components.queryItems = queryItems
+
+        guard let url = components.url else {
+            throw APIError.transport("Invalid playback URL")
+        }
+
+        return url
     }
 
     private var currentPositionSeconds: Int {

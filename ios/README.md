@@ -17,7 +17,7 @@ This folder contains the SwiftUI implementation for the Storytime iOS app MVP.
 - API client with async/await
 - JWT storage in Keychain
 - Parent Gate PIN storage (hashed) in Keychain
-- Playback session flow with CloudFront cookie installation
+- Playback session flow with Mux signed playback tokens
 - Usage events (`play_start`, `pause`, `resume`, `play_end`, `heartbeat`)
 
 ## Folder Layout

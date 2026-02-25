@@ -22,7 +22,7 @@ class Api::V1::PlaybackSessionsController < Api::V1::BaseController
     end
 
     video_asset = book.video_asset
-    unless video_asset&.ready?
+    unless video_asset&.ready? && video_asset.mux_playback_id.present?
       return render_error(
         code: "asset_not_ready",
         message: "Video asset is not ready",
@@ -31,28 +31,20 @@ class Api::V1::PlaybackSessionsController < Api::V1::BaseController
     end
 
     expires_at = 5.minutes.from_now
-    signer = CloudfrontSignedCookieService.new(
-      cloudfront_domain: ENV.fetch("CLOUDFRONT_DOMAIN"),
-      key_pair_id: ENV.fetch("CLOUDFRONT_KEY_PAIR_ID"),
-      private_key_pem: CloudfrontPrivateKeyResolver.call,
-    )
-
-    signed = signer.generate_for_book(book_id: book.id, expires_at: expires_at)
-
-    manifest_path = video_asset.hls_manifest_path.presence || "books/#{book.id}/hls/index.m3u8"
-    playback_url = "https://#{ENV.fetch('CLOUDFRONT_DOMAIN')}/#{manifest_path}"
+    playback_id = video_asset.mux_playback_id
+    playback_token = MuxSigning.new.token_for(playback_id, exp: expires_at)
+    playback_hls_url = "https://stream.mux.com/#{playback_id}.m3u8"
 
     PlaybackSession.create!(
       child_profile: @child,
       book: book,
       issued_at: Time.current,
       expires_at: expires_at,
-      cloudfront_policy: signed[:policy],
     )
 
     render json: {
-      playback_manifest_url: playback_url,
-      cookies: signed[:cookies],
+      playback_hls_url: playback_hls_url,
+      playback_token: playback_token,
       expires_at: expires_at.iso8601,
     }
   end

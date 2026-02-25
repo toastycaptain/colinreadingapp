@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   devise_for :admin_users, ActiveAdmin::Devise.config.merge(sign_out_via: [:delete, :post])
   ActiveAdmin.routes(self)
   get "up" => "rails/health#show", as: :rails_health_check
+  post "/webhooks/mux", to: "webhooks/mux#receive"
 
   devise_for :users, skip: :all
 
@@ -32,19 +33,8 @@ Rails.application.routes.draw do
   namespace :admin do
     namespace :api do
       namespace :v1 do
-        post "uploads/master_video", to: "uploads#master_video"
+        post "mux/direct_uploads", to: "mux#direct_upload"
         get "reports/usage", to: "reports#usage"
-
-        resources :books, only: [] do
-          resources :video_assets, only: [:create]
-        end
-
-        resources :video_assets, only: [] do
-          member do
-            post :retry_processing
-            post :poll_status
-          end
-        end
       end
     end
   end

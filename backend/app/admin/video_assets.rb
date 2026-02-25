@@ -1,9 +1,10 @@
 ActiveAdmin.register VideoAsset do
-  permit_params :book_id, :master_s3_key, :hls_base_path, :hls_manifest_path, :duration_seconds,
-                :mediaconvert_job_id, :processing_status, :error_message
+  permit_params :book_id, :mux_upload_id, :mux_asset_id, :mux_playback_id, :duration_seconds,
+                :processing_status, :playback_policy, :mux_error_message
 
   scope :all
-  scope :uploaded
+  scope :created
+  scope :uploading
   scope :processing
   scope :ready
   scope :failed
@@ -15,51 +16,54 @@ ActiveAdmin.register VideoAsset do
     column :processing_status do |asset|
       status_tag asset.processing_status
     end
-    column :mediaconvert_job_id
-    column :hls_manifest_path
+    column :playback_policy
+    column :mux_upload_id
+    column :mux_asset_id
+    column :mux_playback_id
     column :updated_at
     actions defaults: true do |asset|
-      item "Retry", retry_processing_admin_video_asset_path(asset), method: :post, class: "member_link" if asset.failed?
-      item "Poll", poll_status_admin_video_asset_path(asset), method: :post, class: "member_link" if asset.processing?
+      item "Retry Upload", retry_upload_admin_video_asset_path(asset), method: :post, class: "member_link" if asset.failed?
     end
   end
 
   filter :book
   filter :processing_status
-  filter :mediaconvert_job_id
+  filter :mux_upload_id
+  filter :mux_asset_id
+  filter :mux_playback_id
 
-  action_item :retry_processing, only: :show, if: proc { resource.failed? } do
-    link_to "Retry MediaConvert", retry_processing_admin_video_asset_path(resource), method: :post
-  end
-
-  action_item :poll_status, only: :show, if: proc { resource.processing? } do
-    link_to "Poll Status Now", poll_status_admin_video_asset_path(resource), method: :post
+  action_item :retry_upload, only: :show, if: proc { resource.failed? } do
+    link_to "Retry Upload", retry_upload_admin_video_asset_path(resource), method: :post
   end
 
   show do
     attributes_table do
       row :id
       row :book
-      row :master_s3_key
       row :processing_status
-      row :mediaconvert_job_id
-      row :hls_base_path
-      row :hls_manifest_path
+      row :playback_policy
+      row :mux_upload_id
+      row :mux_asset_id
+      row :mux_playback_id
       row :duration_seconds
-      row :error_message
+      row :mux_error_message
       row :created_at
       row :updated_at
+      row("Playback HLS URL") do |asset|
+        asset.mux_playback_id.present? ? "https://stream.mux.com/#{asset.mux_playback_id}.m3u8" : "Unavailable"
+      end
     end
   end
 
-  member_action :retry_processing, method: :post do
-    resource.update!(processing_status: :uploaded, error_message: nil)
-    MediaConvertCreateJob.perform_later(resource.id)
-    redirect_to resource_path, notice: "MediaConvert job re-enqueued"
-  end
+  member_action :retry_upload, method: :post do
+    resource.update!(
+      processing_status: :created,
+      mux_upload_id: nil,
+      mux_asset_id: nil,
+      mux_playback_id: nil,
+      mux_error_message: nil,
+    )
 
-  member_action :poll_status, method: :post do
-    MediaConvertPollJob.perform_now(resource.id)
-    redirect_to resource_path, notice: "Video asset status refreshed"
+    redirect_to upload_master_video_admin_book_path(resource.book), notice: "Ready for a fresh upload."
   end
 end

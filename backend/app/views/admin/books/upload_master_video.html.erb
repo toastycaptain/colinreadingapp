@@ -1,11 +1,11 @@
 <div class="panel">
-  <h3>Upload Master Video</h3>
+  <h3>Upload Master Video (Mux)</h3>
   <p>
     Book: <strong><%= @book.title %></strong> (ID: <%= @book.id %>)
   </p>
   <p>
-    This uploads the master video directly to S3 using a presigned form,
-    then registers the uploaded key and enqueues MediaConvert processing.
+    This requests a one-time Mux Direct Upload URL and uploads the selected file straight to Mux.
+    Processing status will update when webhooks are received.
   </p>
 
   <div style="margin-bottom: 12px;">
@@ -13,7 +13,7 @@
     <input id="master-video-file" type="file" accept="video/*" />
   </div>
 
-  <button id="upload-master-video-btn" class="button">Upload and Trigger Processing</button>
+  <button id="upload-master-video-btn" class="button">Create Upload URL and Upload</button>
   <p id="upload-status" style="margin-top: 12px;"></p>
 
   <p style="margin-top: 16px;">
@@ -44,65 +44,39 @@
       }
 
       button.disabled = true;
-      setStatus("Requesting upload signature...");
+      setStatus("Creating Mux upload URL...");
 
       try {
-        const signResponse = await fetch("/admin/api/v1/uploads/master_video", {
+        const createResponse = await fetch("/admin/api/v1/mux/direct_uploads", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "X-CSRF-Token": csrfToken,
           },
-          body: JSON.stringify({
-            book_id: bookId,
-            filename: file.name,
-            content_type: file.type || "video/mp4",
-          }),
+          body: JSON.stringify({ book_id: bookId }),
         });
 
-        if (!signResponse.ok) {
-          throw new Error(`Failed to request presigned upload (${signResponse.status})`);
+        if (!createResponse.ok) {
+          throw new Error(`Failed to create direct upload (${createResponse.status})`);
         }
 
-        const signed = await signResponse.json();
-        setStatus("Uploading to S3...");
+        const payload = await createResponse.json();
+        setStatus("Uploading file to Mux...");
 
-        const formData = new FormData();
-        Object.entries(signed.fields).forEach(([key, value]) => {
-          formData.append(key, value);
-        });
-        formData.append("file", file);
-
-        const uploadResponse = await fetch(signed.url, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadResponse.ok && uploadResponse.status !== 201 && uploadResponse.status !== 204) {
-          throw new Error(`S3 upload failed (${uploadResponse.status})`);
-        }
-
-        setStatus("Registering upload and queuing MediaConvert...");
-
-        const registerResponse = await fetch(`/admin/api/v1/books/${bookId}/video_assets`, {
-          method: "POST",
+        const uploadResponse = await fetch(payload.upload_url, {
+          method: "PUT",
           headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "X-CSRF-Token": csrfToken,
+            "Content-Type": file.type || "video/mp4",
           },
-          body: JSON.stringify({
-            master_s3_key: signed.key,
-          }),
+          body: file,
         });
 
-        if (!registerResponse.ok) {
-          throw new Error(`Video asset registration failed (${registerResponse.status})`);
+        if (!uploadResponse.ok) {
+          throw new Error(`Mux upload failed (${uploadResponse.status})`);
         }
 
-        const body = await registerResponse.json();
-        setStatus(`Success. Video asset #${body.id} created with status ${body.processing_status}.`);
+        setStatus(`Upload complete (upload id: ${payload.upload_id}). Waiting for Mux processing webhook...`);
       } catch (error) {
         setStatus(error.message || "Upload failed", true);
       } finally {

@@ -66,16 +66,14 @@ ActiveAdmin.register Book do
       if book.video_asset.present?
         attributes_table_for book.video_asset do
           row :processing_status
-          row :master_s3_key
-          row :mediaconvert_job_id
-          row :hls_manifest_path
-          row :error_message
-          row("Playback Manifest URL") do |asset|
-            if asset.hls_manifest_path.present? && ENV["CLOUDFRONT_DOMAIN"].present?
-              "https://#{ENV['CLOUDFRONT_DOMAIN']}/#{asset.hls_manifest_path}"
-            else
-              "Unavailable"
-            end
+          row :playback_policy
+          row :mux_upload_id
+          row :mux_asset_id
+          row :mux_playback_id
+          row :duration_seconds
+          row :mux_error_message
+          row("Playback HLS URL") do |asset|
+            asset.mux_playback_id.present? ? "https://stream.mux.com/#{asset.mux_playback_id}.m3u8" : "Unavailable"
           end
         end
       else

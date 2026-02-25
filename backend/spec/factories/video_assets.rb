@@ -1,15 +1,26 @@
 FactoryBot.define do
   factory :video_asset do
     association :book
-    sequence(:master_s3_key) { |n| "uploads/master-#{n}.mp4" }
-    hls_base_path { "books/#{book.id}/hls/" }
-    hls_manifest_path { "books/#{book.id}/hls/index.m3u8" }
+    playback_policy { :signed }
+    processing_status { :created }
     duration_seconds { 600 }
-    processing_status { :uploaded }
+
+    trait :uploading do
+      processing_status { :uploading }
+      sequence(:mux_upload_id) { |n| "upload-#{n}" }
+    end
 
     trait :ready do
       processing_status { :ready }
-      mediaconvert_job_id { "job-123" }
+      sequence(:mux_asset_id) { |n| "asset-#{n}" }
+      sequence(:mux_playback_id) { |n| "playback-#{n}" }
+      sequence(:mux_upload_id) { |n| "upload-#{n}" }
+    end
+
+    trait :failed do
+      processing_status { :failed }
+      sequence(:mux_upload_id) { |n| "upload-#{n}" }
+      mux_error_message { "Processing failed" }
     end
   end
 end
