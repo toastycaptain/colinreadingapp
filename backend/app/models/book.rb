@@ -11,6 +11,7 @@ class Book < ApplicationRecord
   has_many :usage_events, dependent: :destroy
 
   validates :title, :author, :language, presence: true
+  validates :category, presence: true
   validates :age_min, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :age_max, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validate :age_range_valid
@@ -22,7 +23,7 @@ class Book < ApplicationRecord
   }
 
   def self.ransackable_attributes(_auth_object = nil)
-    %w[age_max age_min author cover_image_url created_at description id language publisher_id status title updated_at]
+    %w[age_max age_min author category cover_image_url created_at description id language publisher_id status title updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)

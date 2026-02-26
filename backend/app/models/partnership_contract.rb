@@ -9,6 +9,11 @@ class PartnershipContract < ApplicationRecord
   validate :date_range_valid
   validate :rev_share_required_for_revenue_models
 
+  scope :active_on, ->(date) {
+    where("start_date <= ? AND end_date >= ?", date, date)
+      .where(status: statuses[:active])
+  }
+
   def self.ransackable_attributes(_auth_object = nil)
     %w[contract_name created_at end_date id minimum_guarantee_cents notes payment_model publisher_id rev_share_bps start_date status updated_at]
   end

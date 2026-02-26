@@ -4,6 +4,7 @@ RSpec.describe Book, type: :model do
   it { is_expected.to belong_to(:publisher).optional }
   it { is_expected.to validate_presence_of(:title) }
   it { is_expected.to validate_presence_of(:author) }
+  it { is_expected.to validate_presence_of(:category) }
   it { is_expected.to define_enum_for(:status).with_values(draft: 0, active: 1, inactive: 2) }
 
   it "rejects age ranges where min is above max" do

@@ -13,6 +13,10 @@ final class AppViewModel: ObservableObject {
     @Published var activeChild: ChildProfileDTO?
     @Published var libraryBooks: [BookDTO] = []
     @Published var catalogBooks: [BookDTO] = []
+    @Published var catalogCategories: [CatalogCategoryDTO] = []
+    @Published var catalogPagination: CatalogResponseDTO.PaginationDTO?
+    @Published var catalogIsLoading = false
+    @Published var catalogHasMore = false
     @Published var mode: Mode = .child
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -20,6 +24,12 @@ final class AppViewModel: ObservableObject {
 
     private let sessionStore = AuthSessionStore()
     private let gateStore = ParentGateStore()
+
+    private let catalogPerPage = 20
+    private var catalogQuery: String?
+    private var catalogCategory: String?
+    private var catalogAge: Int?
+    private var nextCatalogPage = 1
 
     lazy var apiClient = APIClient(tokenProvider: { [weak self] in
         self?.jwt
@@ -49,13 +59,18 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func register(email: String, password: String) async -> Bool {
+    func register(email: String, password: String, consentAccepted: Bool, policyVersion: String = AppConfig.privacyPolicyVersion) async -> Bool {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
         do {
-            let auth = try await apiClient.register(email: email, password: password)
+            let auth = try await apiClient.register(
+                email: email,
+                password: password,
+                consentAccepted: consentAccepted,
+                policyVersion: policyVersion
+            )
             currentUser = auth.user
             jwt = auth.jwt
             sessionStore.saveJWT(auth.jwt)
@@ -74,6 +89,9 @@ final class AppViewModel: ObservableObject {
         activeChild = nil
         libraryBooks = []
         catalogBooks = []
+        catalogCategories = []
+        catalogPagination = nil
+        catalogHasMore = false
         mode = .child
         showParentGate = false
         gateStore.closeSession()
@@ -130,18 +148,69 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func searchCatalog(query: String) async {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            catalogBooks = []
-            return
-        }
-
+    func loadCatalogCategories() async {
         do {
-            let response = try await apiClient.catalogBooks(query: query)
-            catalogBooks = response.data
+            catalogCategories = try await apiClient.catalogCategories()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func searchCatalog(query: String) async {
+        await searchCatalog(query: query, category: nil, age: nil, reset: true)
+    }
+
+    func searchCatalog(query: String, category: String?, age: Int?, reset: Bool) async {
+        if reset {
+            catalogQuery = query
+            catalogCategory = category
+            catalogAge = age
+            nextCatalogPage = 1
+            catalogHasMore = false
+            catalogPagination = nil
+            catalogBooks = []
+        }
+
+        guard !catalogIsLoading else { return }
+        guard reset || catalogHasMore || nextCatalogPage == 1 else { return }
+
+        catalogIsLoading = true
+        defer { catalogIsLoading = false }
+
+        do {
+            let response = try await apiClient.catalogBooks(
+                query: catalogQuery,
+                age: catalogAge,
+                category: catalogCategory,
+                page: nextCatalogPage,
+                perPage: catalogPerPage
+            )
+
+            if reset {
+                catalogBooks = response.data
+            } else {
+                let existingIDs = Set(catalogBooks.map(\.id))
+                let newRows = response.data.filter { !existingIDs.contains($0.id) }
+                catalogBooks.append(contentsOf: newRows)
+            }
+
+            catalogPagination = response.pagination
+            catalogHasMore = catalogBooks.count < response.pagination.totalCount
+            if catalogHasMore {
+                nextCatalogPage += 1
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func loadMoreCatalog() async {
+        await searchCatalog(
+            query: catalogQuery ?? "",
+            category: catalogCategory,
+            age: catalogAge,
+            reset: false
+        )
     }
 
     func addBookToActiveChild(bookID: Int) async {

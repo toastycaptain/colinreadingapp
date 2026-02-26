@@ -1,0 +1,11 @@
+// Shared iOS build configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.storytime.app
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+SWIFT_VERSION = 5.10
+
+// API / compliance config surfaced via Info.plist
+STORYTIME_API_BASE_URL = https://api.example.com/api/v1
+STORYTIME_PRIVACY_POLICY_URL = https://www.example.com/privacy
+STORYTIME_TERMS_URL = https://www.example.com/terms
+STORYTIME_PRIVACY_POLICY_VERSION = 2026-02

@@ -3,6 +3,7 @@ FactoryBot.define do
     sequence(:title) { |n| "Book #{n}" }
     author { "Author" }
     description { "Story book" }
+    category { "Bedtime" }
     age_min { 3 }
     age_max { 8 }
     language { "en" }

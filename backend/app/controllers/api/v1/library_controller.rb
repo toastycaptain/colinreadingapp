@@ -24,6 +24,7 @@ class Api::V1::LibraryController < Api::V1::BaseController
       title: book.title,
       author: book.author,
       description: book.description,
+      category: book.category,
       age_min: book.age_min,
       age_max: book.age_max,
       language: book.language,

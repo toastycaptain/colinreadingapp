@@ -1,0 +1,9 @@
+daily_metrics_aggregation:
+  cron: "15 2 * * *"
+  class: "DailyMetricsAggregationJob"
+  queue: analytics
+
+purge_old_usage_events:
+  cron: "0 3 * * *"
+  class: "PurgeOldUsageEventsJob"
+  queue: maintenance

@@ -6,6 +6,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isRegisterMode = false
+    @State private var consentAccepted = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -31,10 +32,28 @@ struct LoginView: View {
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
+            if isRegisterMode {
+                Toggle(isOn: $consentAccepted) {
+                    Text("I am the parent/guardian and consent to the privacy policy")
+                        .font(.subheadline)
+                }
+
+                HStack(spacing: 16) {
+                    Link("Privacy Policy", destination: AppConfig.privacyPolicyURL)
+                    Link("Terms", destination: AppConfig.termsURL)
+                }
+                .font(.caption)
+            }
+
             Button {
                 Task {
                     if isRegisterMode {
-                        _ = await appViewModel.register(email: email, password: password)
+                        _ = await appViewModel.register(
+                            email: email,
+                            password: password,
+                            consentAccepted: consentAccepted,
+                            policyVersion: AppConfig.privacyPolicyVersion
+                        )
                     } else {
                         _ = await appViewModel.login(email: email, password: password)
                     }
@@ -50,7 +69,7 @@ struct LoginView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(email.isEmpty || password.isEmpty || appViewModel.isLoading)
+            .disabled(isSubmitDisabled)
 
             Button(isRegisterMode ? "Have an account? Login" : "Need an account? Register") {
                 isRegisterMode.toggle()
@@ -60,5 +79,17 @@ struct LoginView: View {
             Spacer()
         }
         .padding(24)
+    }
+
+    private var isSubmitDisabled: Bool {
+        if appViewModel.isLoading || email.isEmpty || password.isEmpty {
+            return true
+        }
+
+        if isRegisterMode {
+            return !consentAccepted
+        }
+
+        return false
     }
 }

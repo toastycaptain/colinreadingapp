@@ -1,6 +1,6 @@
 ActiveAdmin.register Book do
   permit_params :title, :author, :description, :age_min, :age_max, :language, :cover_image_url,
-                :publisher_id, :status
+                :publisher_id, :status, :category
 
   scope :all
   scope :draft
@@ -13,6 +13,7 @@ ActiveAdmin.register Book do
     column :title
     column :author
     column :publisher
+    column :category
     column :status
     column :age_min
     column :age_max
@@ -25,6 +26,7 @@ ActiveAdmin.register Book do
   filter :title
   filter :author
   filter :publisher
+  filter :category
   filter :status
   filter :language
 
@@ -41,6 +43,7 @@ ActiveAdmin.register Book do
       row :age_min
       row :age_max
       row :language
+      row :category
       row :cover_image_url
       row :publisher
       row :status
@@ -90,6 +93,7 @@ ActiveAdmin.register Book do
       f.input :age_min
       f.input :age_max
       f.input :language
+      f.input :category
       f.input :cover_image_url
       f.input :publisher
       f.input :status

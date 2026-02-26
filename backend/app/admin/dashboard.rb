@@ -7,6 +7,7 @@ ActiveAdmin.register_page "Dashboard" do
     active_books_count = Book.active.count
     processing_count = VideoAsset.processing.count
     failed_count = VideoAsset.failed.count
+    pending_payout_periods = PayoutPeriod.where(status: [:draft, :calculating, :ready]).count
     recent_events = UsageEvent.where(occurred_at: 7.days.ago..Time.current)
     recent_minutes = recent_events.where(event_type: [UsageEvent.event_types["heartbeat"], UsageEvent.event_types["play_end"]]).sum(:position_seconds).to_f / 60.0
     recent_play_starts = recent_events.where(event_type: UsageEvent.event_types["play_start"]).count
@@ -39,6 +40,15 @@ ActiveAdmin.register_page "Dashboard" do
           end
           div do
             link_to "Open Usage Reports", admin_usage_reports_path
+          end
+        end
+
+        panel "Payouts" do
+          attributes_table_for(PayoutPeriod.new) do
+            row("Open payout periods") { pending_payout_periods }
+          end
+          div do
+            link_to "View Payout Periods", admin_payout_periods_path
           end
         end
 

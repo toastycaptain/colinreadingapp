@@ -1,0 +1,18 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build release archive"
+  lane :build_release do
+    build_app(
+      scheme: "StorytimeApp",
+      export_options: "AppStore/ExportOptions.plist",
+      configuration: "Release"
+    )
+  end
+
+  desc "Upload build to TestFlight"
+  lane :beta do
+    build_release
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end

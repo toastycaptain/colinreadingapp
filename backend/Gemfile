@@ -24,6 +24,8 @@ gem "activeadmin", "~> 3.3"
 gem "sprockets-rails"
 gem "rack-cors"
 gem "mux_ruby", "~> 5.1"
+gem "stripe"
+gem "sidekiq-cron"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

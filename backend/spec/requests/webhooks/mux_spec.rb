@@ -21,9 +21,13 @@ RSpec.describe "Mux webhooks", type: :request do
 
     allow_any_instance_of(MuxWebhookVerifier).to receive(:valid?).and_return(true)
 
-    post "/webhooks/mux", params: payload.to_json, headers: { "CONTENT_TYPE" => "application/json", "Mux-Signature" => "test" }
+    expect {
+      post "/webhooks/mux", params: payload.to_json, headers: { "CONTENT_TYPE" => "application/json", "Mux-Signature" => "test" }
+    }.to have_enqueued_job(ProcessMuxWebhookJob)
 
     expect(response).to have_http_status(:ok)
+
+    perform_enqueued_jobs
 
     video_asset.reload
     expect(video_asset.processing_status).to eq("ready")
@@ -39,8 +43,10 @@ RSpec.describe "Mux webhooks", type: :request do
   it "returns unauthorized for invalid signatures" do
     allow_any_instance_of(MuxWebhookVerifier).to receive(:valid?).and_return(false)
 
-    post "/webhooks/mux", params: { type: "video.asset.ready" }.to_json,
-                           headers: { "CONTENT_TYPE" => "application/json", "Mux-Signature" => "bad" }
+    expect {
+      post "/webhooks/mux", params: { type: "video.asset.ready" }.to_json,
+                             headers: { "CONTENT_TYPE" => "application/json", "Mux-Signature" => "bad" }
+    }.not_to have_enqueued_job(ProcessMuxWebhookJob)
 
     expect(response).to have_http_status(:unauthorized)
   end

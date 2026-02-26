@@ -1,5 +1,5 @@
 ActiveAdmin.register Publisher do
-  permit_params :name, :billing_email, :contact_name, :status
+  permit_params :name, :billing_email, :contact_name, :status, :stripe_connect_account_id, :stripe_onboarding_complete
 
   scope :all
   scope :active
@@ -12,6 +12,8 @@ ActiveAdmin.register Publisher do
     column :billing_email
     column :contact_name
     column :status
+    column :stripe_connect_account_id
+    column :stripe_onboarding_complete
     column("Contracts") { |publisher| publisher.partnership_contracts.count }
     column("Books") { |publisher| publisher.books.count }
     actions defaults: true do |publisher|
@@ -22,6 +24,7 @@ ActiveAdmin.register Publisher do
   filter :name
   filter :billing_email
   filter :status
+  filter :stripe_connect_account_id
 
   form do |f|
     f.inputs do
@@ -29,6 +32,8 @@ ActiveAdmin.register Publisher do
       f.input :billing_email
       f.input :contact_name
       f.input :status
+      f.input :stripe_connect_account_id
+      f.input :stripe_onboarding_complete
     end
     f.actions
   end
@@ -40,6 +45,8 @@ ActiveAdmin.register Publisher do
       row :billing_email
       row :contact_name
       row :status
+      row :stripe_connect_account_id
+      row :stripe_onboarding_complete
       row :created_at
       row :updated_at
     end

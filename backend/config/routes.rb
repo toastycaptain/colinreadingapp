@@ -1,6 +1,11 @@
 Rails.application.routes.draw do
+  require "sidekiq/web"
+
   devise_for :admin_users, ActiveAdmin::Devise.config.merge(sign_out_via: [:delete, :post])
   ActiveAdmin.routes(self)
+  authenticate :admin_user, lambda { |admin| admin.super_admin? } do
+    mount Sidekiq::Web => "/admin/sidekiq"
+  end
   get "up" => "rails/health#show", as: :rails_health_check
   post "/webhooks/mux", to: "webhooks/mux#receive"
 
@@ -11,6 +16,8 @@ Rails.application.routes.draw do
     post "api/v1/auth/login", to: "api/v1/auth/sessions#create"
     delete "api/v1/auth/logout", to: "api/v1/auth/sessions#destroy"
     post "api/v1/auth/logout", to: "api/v1/auth/sessions#destroy"
+    post "api/v1/auth/password/forgot", to: "api/v1/auth/passwords#forgot"
+    post "api/v1/auth/password/reset", to: "api/v1/auth/passwords#reset"
   end
 
   namespace :api do
@@ -23,7 +30,14 @@ Rails.application.routes.draw do
       end
 
       namespace :catalog do
-        resources :books, only: [:index]
+        resources :books, only: [:index, :show]
+        resources :categories, only: [:index]
+      end
+
+      namespace :compliance do
+        resource :privacy_policy, only: [:show]
+        resources :consents, only: [:create]
+        resources :deletion_requests, only: [:index, :create]
       end
 
       resources :usage_events, only: [:create]
@@ -35,6 +49,13 @@ Rails.application.routes.draw do
       namespace :v1 do
         post "mux/direct_uploads", to: "mux#direct_upload"
         get "reports/usage", to: "reports#usage"
+        get "reports/analytics", to: "reports#analytics"
+        resources :payout_periods, only: [:create, :show] do
+          member do
+            post :generate_statements
+            post :mark_paid
+          end
+        end
       end
     end
   end

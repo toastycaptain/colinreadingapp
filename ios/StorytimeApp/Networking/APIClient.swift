@@ -25,12 +25,42 @@ final class APIClient {
         try await send(path: "auth/login", method: "POST", body: ["email": email, "password": password], requiresAuth: false)
     }
 
-    func register(email: String, password: String) async throws -> AuthResponseDTO {
-        try await send(path: "auth/register", method: "POST", body: ["email": email, "password": password], requiresAuth: false)
+    func register(email: String, password: String, consentAccepted: Bool, policyVersion: String) async throws -> AuthResponseDTO {
+        try await send(
+            path: "auth/register",
+            method: "POST",
+            body: [
+                "email": email,
+                "password": password,
+                "consent_accepted": consentAccepted,
+                "policy_version": policyVersion,
+            ],
+            requiresAuth: false
+        )
     }
 
     func logout() async throws {
         _ = try await sendEmpty(path: "auth/logout", method: "POST")
+    }
+
+    func forgotPassword(email: String, resetURL: String? = nil) async throws {
+        var payload: [String: String] = ["email": email]
+        if let resetURL {
+            payload["reset_url"] = resetURL
+        }
+        _ = try await sendEmpty(path: "auth/password/forgot", method: "POST", body: payload, requiresAuth: false)
+    }
+
+    func resetPassword(token: String, newPassword: String) async throws {
+        _ = try await sendEmpty(
+            path: "auth/password/reset",
+            method: "POST",
+            body: [
+                "reset_password_token": token,
+                "password": newPassword,
+            ],
+            requiresAuth: false
+        )
     }
 
     func children() async throws -> [ChildProfileDTO] {
@@ -45,11 +75,17 @@ final class APIClient {
         try await send(path: "children/\(id)", method: "PATCH", body: ["name": name])
     }
 
-    func catalogBooks(query: String, age: Int? = nil, publisherID: Int? = nil, page: Int = 1, perPage: Int = 20) async throws -> CatalogResponseDTO {
+    func catalogBooks(query: String? = nil, age: Int? = nil, category: String? = nil, publisherID: Int? = nil, page: Int = 1, perPage: Int = 20) async throws -> CatalogResponseDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("catalog/books"), resolvingAgainstBaseURL: false)!
-        var queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "page", value: String(page)), URLQueryItem(name: "per_page", value: String(perPage))]
+        var queryItems = [URLQueryItem(name: "page", value: String(page)), URLQueryItem(name: "per_page", value: String(perPage))]
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "q", value: query))
+        }
         if let age {
             queryItems.append(URLQueryItem(name: "age", value: String(age)))
+        }
+        if let category, !category.isEmpty {
+            queryItems.append(URLQueryItem(name: "category", value: category))
         }
         if let publisherID {
             queryItems.append(URLQueryItem(name: "publisher", value: String(publisherID)))
@@ -57,6 +93,15 @@ final class APIClient {
         components.queryItems = queryItems
 
         return try await request(url: components.url!, method: "GET", body: Optional<String>.none)
+    }
+
+    func catalogBookDetail(bookID: Int) async throws -> BookDTO {
+        try await send(path: "catalog/books/\(bookID)", method: "GET")
+    }
+
+    func catalogCategories() async throws -> [CatalogCategoryDTO] {
+        let response: CatalogCategoriesResponseDTO = try await send(path: "catalog/categories", method: "GET")
+        return response.data
     }
 
     func childLibrary(childID: Int) async throws -> [BookDTO] {
