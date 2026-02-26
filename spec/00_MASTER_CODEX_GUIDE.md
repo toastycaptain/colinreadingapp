@@ -1,197 +1,243 @@
 # Storytime Video Library — MASTER GUIDE for Codex
-> **Purpose:** This file tells Codex (and any developer) **how to use the other Markdown specs** to build the complete system:  
-> **Rails API backend → Admin web console → AWS infra → iOS app.**  
-> The other files are the source of truth for requirements and should be followed in order.
+> **Purpose:** This file tells Codex (and any developer) **how to use the other Markdown specs** to build the complete system.
+> The original MVP (Steps 1-4) is **complete**. Steps 5-12 define the next phase of features.
+> **Note:** The video pipeline has been migrated from AWS MediaConvert to **Mux**. References to CloudFront signed cookies, S3 presigned uploads, and MediaConvert in specs 01-04 are superseded by the Mux integration now in place.
 
 ---
 
 ## 0) Files in this spec set (read order)
 
-Codex should process these files **in order**:
+### Original MVP specs (Steps 1-4 — COMPLETE)
+1. `01_backend_rails_api.md` — Rails API backend: data model, endpoints, auth, signing, jobs
+2. `02_admin_console.md` — Rails Admin console: ActiveAdmin pages + workflows
+3. `04_aws_infra_terraform.md` — AWS infra as code: S3, CloudFront OAC, Key Group, IAM, Secrets
+4. `03_ios_app.md` — iOS app: SwiftUI screens, networking, playback UX
 
-1. `01_backend_rails_api.md` — Rails API backend: data model, endpoints, auth, signing, jobs  
-2. `02_admin_console.md` — Rails Admin console: ActiveAdmin pages + workflows  
-3. `04_aws_infra_terraform.md` — AWS infra as code: S3, CloudFront OAC, Key Group, IAM, Secrets  
-4. `03_ios_app.md` — iOS app: SwiftUI screens, networking, cookie install, playback UX
+> **Important:** Specs 01-04 reference the original AWS MediaConvert architecture. The implementation has migrated to **Mux** for video processing, signed playback tokens (not CloudFront cookies), and direct upload. The code is authoritative over these specs for video pipeline details.
 
-**Important:** Some items are cross-dependent (e.g., CloudFront domain + Key Group ID are outputs needed by Rails). Codex must implement integration points exactly as described.
+### Phase 2 specs (Steps 5-12 — TO BE IMPLEMENTED)
+Codex should process these **in the recommended order below**:
+
+5. `08_ios_launch_readiness.md` — Xcode project, build configs, App Store preparation
+6. `09_coppa_compliance.md` — COPPA compliance, parental consent, privacy policy, data retention
+7. `05_ios_player_ux.md` — Player improvements: progress bar, continue watching, captions
+8. `06_ios_catalog_and_discovery.md` — Catalog filtering, pagination, book details, categories
+9. `12_background_jobs.md` — Sidekiq job infrastructure, async webhook processing, cron scheduling
+10. `10_email_and_notifications.md` — Transactional emails, password reset, admin notifications
+11. `11_analytics_engine.md` — Aggregation tables, daily metrics jobs, advanced reporting
+12. `07_publisher_payout_system.md` — Royalty calculation, statements, Stripe Connect payouts
+
+**Cross-dependencies:** Some specs reference each other. Key dependencies:
+- `12_background_jobs.md` provides the job infrastructure used by specs 07, 09, 10, 11
+- `09_coppa_compliance.md` must be implemented before App Store submission (spec 08)
+- `11_analytics_engine.md` produces the aggregated data consumed by `07_publisher_payout_system.md`
 
 ---
 
 ## 1) Output expectation (what Codex should produce)
 
-Codex should produce **three deliverables** (repositories or top-level folders):
+### Completed (MVP)
+- ✅ Rails 8.1 API backend with PostgreSQL, Devise + JWT, Mux integration
+- ✅ ActiveAdmin console with CRUD, upload workflow, reporting
+- ✅ Terraform infrastructure modules (legacy — video pipeline now uses Mux)
+- ✅ SwiftUI iOS app with Parent/Child modes, AVPlayer + Mux HLS, usage events
 
-### A) Backend repo (Rails)
-- Rails 7.1+ API app with:
-  - PostgreSQL
-  - Redis + Sidekiq
-  - JWT auth
-  - Models + migrations + validations + indexes
-  - API endpoints under `/api/v1`
-  - CloudFront signed cookie generation service
-  - MediaConvert job creation + polling jobs
-  - RSpec tests
+### Phase 2 deliverables
 
-### B) Admin console (Rails / ActiveAdmin)
-- Can be:
-  - **Same Rails repo** as backend (preferred), or
-  - Separate Rails app (acceptable but slower)
-- ActiveAdmin configured with AdminUser auth
-- Upload workflow + MediaConvert status
-- Usage reporting + CSV export
+**A) Backend additions**
+- Background job infrastructure (Sidekiq jobs, cron scheduling)
+- Email delivery system (Action Mailer + provider)
+- Analytics aggregation engine (daily metrics, completion tracking)
+- Publisher payout system (royalty calculation, Stripe Connect)
+- COPPA compliance (consent tracking, data retention, deletion endpoints)
+- New API endpoints (book detail, categories, position persistence, data controls)
 
-### C) iOS app (Swift/SwiftUI)
-- SwiftUI app implementing Parent Mode and Child Mode
-- AVPlayer HLS playback from CloudFront
-- Signed cookie installation into HTTPCookieStorage
-- Parent Gate for mode switching
-- Usage events sent to backend
+**B) iOS additions**
+- Xcode project file with build configurations (Dev/Staging/Release)
+- Player UX improvements (progress bar, continue watching, captions)
+- Catalog enhancements (filters, pagination, book detail view)
+- COPPA consent flow and parental data controls
+- Settings view with account deletion, PIN change, privacy links
+- Forgot password flow
 
-### D) Infra (Terraform)
-- Terraform code that provisions:
-  - S3 master uploads bucket (private + CORS for admin uploads)
-  - S3 HLS output bucket (private)
-  - CloudFront distribution with **OAC**
-  - CloudFront public key + key group (trusted key groups on behavior)
-  - MediaConvert service role (read master, write output)
-  - Secrets Manager secret for CloudFront private key (resource; avoid payload in prod)
-  - Outputs needed by Rails
+**C) Admin additions**
+- Category CRUD and book categorization
+- Payout period management and statement workflows
+- Enhanced analytics dashboards (completion rates, drop-off, trends)
+- Sidekiq Web UI for job monitoring
 
 ---
 
-## 2) Recommended build sequence (do this, in this order)
+## 2) Recommended build sequence (Phase 2)
 
-### Step 1 — AWS infra first (minimum viable infra)
-Even though infra is file #3 in the read order, implement the **minimum infra early** so backend can be wired correctly.
+### Step 5 — iOS Launch Readiness
+Using `08_ios_launch_readiness.md`:
+1. Create Xcode project with all existing source files
+2. Configure build environments (Debug, Staging, Release)
+3. Add app icons, launch screen, and accent color
+4. Add Settings view with account deletion
+5. Add backend DELETE /api/v1/auth/account endpoint
 
-Codex should:
-1. Implement Terraform per `04_aws_infra_terraform.md`
-2. Apply in `dev` environment
-3. Capture outputs:
-   - buckets, CloudFront domain, key group/public key IDs, MediaConvert role ARN, secret ARN/name
+**Deliverable:** App can be built and run from Xcode with environment-specific API URLs.
 
-**Deliverable at end of Step 1:** CloudFront domain exists, output bucket accessible by CloudFront via OAC, IAM role exists.
+### Step 6 — COPPA Compliance
+Using `09_coppa_compliance.md`:
+1. Add parental consent flow to child creation
+2. Implement privacy policy page
+3. Add data review and deletion endpoints
+4. Remove device_model from usage event metadata
+5. Add DataRetentionCleanupJob
 
-### Step 2 — Backend Rails API
-Using `01_backend_rails_api.md`, Codex should:
-1. Create Rails API app + Postgres + Sidekiq
-2. Implement models/migrations exactly as specified
-3. Implement auth and permissions
-4. Implement API endpoints:
-   - catalog search, library assignment, playback sessions, usage events
-5. Implement CloudFront signed cookie service
-6. Implement upload presign endpoints for admin
-7. Implement MediaConvert create job + poll jobs
-8. Add tests
+**Deliverable:** App meets COPPA requirements for US launch. Privacy policy accessible from app and App Store.
 
-**Deliverable at end of Step 2:** Backend can issue playback sessions that return signed cookies for a book with a ready VideoAsset.
+### Step 7 — Player UX
+Using `05_ios_player_ux.md`:
+1. Add progress bar with scrubbing
+2. Implement continue watching (position persistence)
+3. Add loading/buffering states
+4. Add video completion screen
+5. Add seek event tracking
 
-### Step 3 — Admin console
-Using `02_admin_console.md`, Codex should:
-1. Add ActiveAdmin + AdminUser auth
-2. CRUD pages for publishers/contracts/books/rights/video assets
-3. Upload workflow:
-   - generate presigned upload
-   - register master key
-   - trigger MediaConvert
-   - show status + retry
-4. Reporting + CSV export
+**Deliverable:** Player has progress bar, remembers position, shows loading/completion states.
 
-**Deliverable at end of Step 3:** Admin can upload a master video → MediaConvert processes → VideoAsset becomes `ready` → playback works via CloudFront.
+### Step 8 — Catalog & Discovery
+Using `06_ios_catalog_and_discovery.md`:
+1. Add Category model and seed data
+2. Add filter bar to catalog (age, categories)
+3. Implement infinite scroll pagination
+4. Add BookDetailView
+5. Add duration badges to library
 
-### Step 4 — iOS app
-Using `03_ios_app.md`, Codex should:
-1. Implement login + child selection
-2. Implement Child Mode library + player (locked down)
-3. Implement Parent Mode catalog search + add to library
-4. Implement playback session request + cookie install + AVPlayer playback
-5. Implement usage events
+**Deliverable:** Parents can browse, filter, and discover books with rich detail views.
 
-**Deliverable at end of Step 4:** End-to-end: Parent adds a book → Child plays it with only play/pause/back controls.
+### Step 9 — Background Jobs
+Using `12_background_jobs.md`:
+1. Set up prioritized queues
+2. Refactor webhook processing to async
+3. Add sidekiq-cron for scheduled jobs
+4. Mount Sidekiq Web UI
+5. Add job monitoring and error handling
+
+**Deliverable:** All async processing runs via Sidekiq. Webhook processing is non-blocking. Recurring jobs are scheduled.
+
+### Step 10 — Email System
+Using `10_email_and_notifications.md`:
+1. Configure email delivery (Postmark or SES)
+2. Implement ParentMailer (welcome, password reset, account deletion)
+3. Implement AdminMailer (video failures, rights expiration)
+4. Add password reset flow (backend + iOS)
+5. Add scheduled rights expiration notifications
+
+**Deliverable:** Transactional emails work. Parents can reset passwords. Admins get notified of issues.
+
+### Step 11 — Analytics Engine
+Using `11_analytics_engine.md`:
+1. Create aggregation tables (DailyBookMetric, DailyPlatformMetric, etc.)
+2. Implement DailyMetricsAggregationJob
+3. Update admin dashboard with pre-aggregated metrics
+4. Add book-level and publisher-level analytics panels
+5. Add drop-off analysis
+
+**Deliverable:** Admin dashboard shows rich analytics from pre-aggregated data. Reports are fast.
+
+### Step 12 — Publisher Payouts
+Using `07_publisher_payout_system.md`:
+1. Create payout tables (PayoutPeriod, PublisherStatement, StatementLineItem)
+2. Implement PayoutCalculationService
+3. Add payout management to admin console
+4. Integrate Stripe Connect
+5. Add publisher email notifications
+
+**Deliverable:** Admin can calculate, review, approve, and process publisher payouts via Stripe.
 
 ---
 
-## 3) Environment variables and config contract (must match)
+## 3) Environment variables and config contract
 
-Codex must standardize environment variables used by Rails and populate them from Terraform outputs.
-
-### Rails backend required env vars (minimum)
+### Existing env vars (from MVP)
 - `DATABASE_URL`
 - `REDIS_URL`
 - `JWT_SECRET`
-- `AWS_REGION`
-- `S3_MASTER_BUCKET`
-- `S3_HLS_BUCKET`
-- `CLOUDFRONT_DOMAIN` (e.g., `dxxxx.cloudfront.net` or `cdn.example.com`)
-- `CLOUDFRONT_KEY_PAIR_ID` (or public key id, depending on signing implementation — be consistent)
-- `CLOUDFRONT_PRIVATE_KEY_SECRET_ARN` (or name)
-- `MEDIACONVERT_ROLE_ARN`
+- `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`
+- `MUX_SIGNING_KEY_ID`, `MUX_SIGNING_KEY_PRIVATE_KEY`
+- `MUX_WEBHOOK_SIGNING_SECRET`
+- `CORS_ALLOWED_ORIGINS`
 
-Codex must include a `.env.example` documenting all required vars.
+### New env vars (Phase 2)
+- `MAIL_FROM_ADDRESS` — sender address for transactional emails
+- `POSTMARK_API_TOKEN` — email delivery provider (or equivalent)
+- `STRIPE_SECRET_KEY` — Stripe API key for payouts
+- `STRIPE_WEBHOOK_SECRET` — Stripe webhook signature verification
+- `REVENUE_PER_MINUTE_CENTS` — platform revenue attribution rate
+- `PAYOUT_CURRENCY` — default payout currency (default: USD)
 
----
-
-## 4) Definition of Done (DoD) — MVP end-to-end tests
-
-Codex should ensure these scenarios pass in dev:
-
-### Content pipeline
-1. Admin creates publisher + book + rights window
-2. Admin uploads master video to S3 via presigned upload
-3. Admin triggers MediaConvert job
-4. VideoAsset becomes `ready` and manifest exists at:
-   - `s3://<hls_bucket>/books/<book_id>/hls/index.m3u8`
-5. CloudFront serves the manifest/segments when signed cookies are present
-
-### Parent flow
-1. Parent logs in
-2. Parent searches catalog
-3. Parent adds book to child library
-4. Child library shows the book
-
-### Child flow
-1. Child taps book
-2. App requests playback session
-3. Backend validates:
-   - child belongs to parent
-   - book in library
-   - rights window active
-   - asset ready
-4. Backend returns manifest URL + signed cookies
-5. App installs cookies and playback starts
-6. App sends usage events
-
-### Security checks
-- Parent cannot access another parent’s child
-- Playback session denied if book not in child library
-- Playback session denied if rights expired
+Codex must update `.env.example` with all new variables.
 
 ---
 
-## 5) Implementation guidance for Codex (how to work through specs)
+## 4) Definition of Done (DoD) — Phase 2
 
-When implementing each file:
-1. **Create a checklist** from that file’s “Deliverables for Codex” section.
-2. Implement one vertical slice at a time:
-   - models → endpoint → tests
-3. Keep interfaces stable:
-   - Do not rename fields/endpoints unless updating all files consistently.
-4. Use explicit TODO markers for phase-2 features (child session tokens, publisher portal, offline).
+### Launch readiness
+1. App builds and runs from Xcode for all three configurations
+2. Account deletion works end-to-end
+3. Privacy policy is accessible from app settings
+4. COPPA consent flow works during child creation
+
+### Player & catalog
+5. Player shows progress bar with scrubbing
+6. "Continue watching" resumes from saved position
+7. Catalog supports age and category filters
+8. Infinite scroll pagination works
+9. Book detail view shows full metadata
+
+### Backend infrastructure
+10. All webhook processing runs via Sidekiq (not synchronous)
+11. Daily metrics aggregation job runs on schedule
+12. Emails delivered for: welcome, password reset, video failure, rights expiration
+13. Data retention cleanup job purges old records per COPPA policy
+
+### Publisher payouts
+14. PayoutCalculationService correctly calculates royalties for all three payment models
+15. Admin can create period → calculate → review → approve → pay
+16. Stripe Connect transfers succeed for approved statements
+
+---
+
+## 5) Implementation guidance for Codex
+
+When implementing Phase 2 specs:
+1. **Read the spec's "Current State" section** to understand what already exists.
+2. **Check for cross-references** to other specs before starting (some features depend on others).
+3. Implement one vertical slice at a time: **migration → model → service → controller → test**.
+4. Keep existing API contracts stable — new endpoints only, do not break existing ones.
+5. All background jobs must be **idempotent** (safe to retry).
+6. All new endpoints require **RSpec request tests**.
+7. COPPA requirements take precedence over feature convenience.
 
 ---
 
 ## 6) Where each file is authoritative
 
+### MVP specs (01-04)
 - Data model + endpoints + signing logic: `01_backend_rails_api.md`
 - Admin workflows + UI actions: `02_admin_console.md`
 - AWS resources + policies + outputs: `04_aws_infra_terraform.md`
-- iOS UI restrictions + cookie handling + playback flow: `03_ios_app.md`
+- iOS UI restrictions + playback flow: `03_ios_app.md`
 
-If there is a conflict, resolve it by:
-1. Prioritizing **security constraints** (child mode lock-down, signed access)
-2. Prioritizing **backend contract** (API shapes)
-3. Updating the conflicting section and keeping changes consistent across files
+### Phase 2 specs (05-12)
+- Player UX + continue watching: `05_ios_player_ux.md`
+- Catalog filters + pagination + book detail: `06_ios_catalog_and_discovery.md`
+- Payout logic + Stripe Connect: `07_publisher_payout_system.md`
+- Xcode project + App Store prep: `08_ios_launch_readiness.md`
+- COPPA compliance + privacy: `09_coppa_compliance.md`
+- Email system + notifications: `10_email_and_notifications.md`
+- Analytics aggregation + dashboards: `11_analytics_engine.md`
+- Background jobs + cron scheduling: `12_background_jobs.md`
+
+If there is a conflict between specs, resolve it by:
+1. Prioritizing **COPPA/security constraints** (always)
+2. Prioritizing **backend API contract** (endpoint shapes)
+3. Prioritizing **the more recently numbered spec** (Phase 2 specs override MVP specs where applicable)
 
 ---
 
@@ -201,4 +247,11 @@ This master file accompanies:
 - `02_admin_console.md`
 - `03_ios_app.md`
 - `04_aws_infra_terraform.md`
-
+- `05_ios_player_ux.md`
+- `06_ios_catalog_and_discovery.md`
+- `07_publisher_payout_system.md`
+- `08_ios_launch_readiness.md`
+- `09_coppa_compliance.md`
+- `10_email_and_notifications.md`
+- `11_analytics_engine.md`
+- `12_background_jobs.md`
