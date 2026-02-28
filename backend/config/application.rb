@@ -27,6 +27,7 @@ module Backend
     # Admin UI requires full middleware stack (cookies, sessions, flash).
     # API endpoints still use ActionController::API through ApplicationController.
     config.api_only = false
+    config.middleware.use Rack::Attack
     config.active_job.queue_adapter = :sidekiq
   end
 end

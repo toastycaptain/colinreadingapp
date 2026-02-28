@@ -37,7 +37,10 @@ final class AppViewModel: ObservableObject {
 
     func bootstrap() async {
         jwt = sessionStore.loadJWT()
-        guard jwt != nil else { return }
+        guard jwt != nil else {
+            configureDemoExperience()
+            return
+        }
         await refreshChildren()
     }
 
@@ -96,10 +99,14 @@ final class AppViewModel: ObservableObject {
         showParentGate = false
         gateStore.closeSession()
         sessionStore.clear()
+        configureDemoExperience()
     }
 
     func refreshChildren() async {
-        guard jwt != nil else { return }
+        guard jwt != nil else {
+            configureDemoExperience()
+            return
+        }
 
         do {
             children = try await apiClient.children()
@@ -136,6 +143,11 @@ final class AppViewModel: ObservableObject {
     }
 
     func refreshLibrary() async {
+        guard jwt != nil else {
+            libraryBooks = [DemoContent.howToBook]
+            return
+        }
+
         guard let childID = activeChild?.id else {
             libraryBooks = []
             return
@@ -149,6 +161,11 @@ final class AppViewModel: ObservableObject {
     }
 
     func loadCatalogCategories() async {
+        guard jwt != nil else {
+            catalogCategories = [DemoContent.howToCategory]
+            return
+        }
+
         do {
             catalogCategories = try await apiClient.catalogCategories()
         } catch {
@@ -161,6 +178,11 @@ final class AppViewModel: ObservableObject {
     }
 
     func searchCatalog(query: String, category: String?, age: Int?, reset: Bool) async {
+        guard jwt != nil else {
+            runDemoCatalogSearch(query: query, category: category, age: age, reset: reset)
+            return
+        }
+
         if reset {
             catalogQuery = query
             catalogCategory = category
@@ -214,6 +236,13 @@ final class AppViewModel: ObservableObject {
     }
 
     func addBookToActiveChild(bookID: Int) async {
+        guard jwt != nil else {
+            if !libraryBooks.contains(where: { $0.id == DemoContent.howToBook.id }) {
+                libraryBooks.insert(DemoContent.howToBook, at: 0)
+            }
+            return
+        }
+
         guard let childID = activeChild?.id else { return }
 
         do {
@@ -225,6 +254,15 @@ final class AppViewModel: ObservableObject {
     }
 
     func removeBookFromActiveChild(bookID: Int) async {
+        guard jwt != nil else {
+            if bookID == DemoContent.howToBook.id {
+                errorMessage = "The How To guide is pinned for demo mode."
+                return
+            }
+            libraryBooks.removeAll(where: { $0.id == bookID })
+            return
+        }
+
         guard let childID = activeChild?.id else { return }
 
         do {
@@ -268,5 +306,66 @@ final class AppViewModel: ObservableObject {
     func exitParentMode() {
         mode = .child
         showParentGate = false
+    }
+
+    private func configureDemoExperience() {
+        currentUser = UserDTO(id: -1, email: "demo@storytime.local", role: "parent")
+        children = [DemoContent.demoChild]
+
+        if activeChild == nil || children.contains(where: { $0.id == activeChild?.id }) == false {
+            activeChild = DemoContent.demoChild
+        }
+
+        libraryBooks = [DemoContent.howToBook]
+        catalogBooks = [DemoContent.howToBook]
+        catalogCategories = [DemoContent.howToCategory]
+        catalogPagination = CatalogResponseDTO.PaginationDTO(page: 1, perPage: catalogPerPage, totalCount: 1)
+        catalogHasMore = false
+        nextCatalogPage = 1
+        mode = .child
+    }
+
+    private func runDemoCatalogSearch(query: String, category: String?, age: Int?, reset: Bool) {
+        if reset {
+            catalogQuery = query
+            catalogCategory = category
+            catalogAge = age
+            nextCatalogPage = 1
+            catalogHasMore = false
+            catalogPagination = nil
+            catalogBooks = []
+        }
+
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        var books = [DemoContent.howToBook]
+
+        if let category, !category.isEmpty {
+            books = books.filter { ($0.category ?? "").caseInsensitiveCompare(category) == .orderedSame }
+        }
+
+        if let age {
+            books = books.filter { book in
+                let minAge = book.ageMin ?? 0
+                let maxAge = book.ageMax ?? 99
+                return age >= minAge && age <= maxAge
+            }
+        }
+
+        if !normalizedQuery.isEmpty {
+            books = books.filter { book in
+                let haystack = [book.title, book.author, book.description ?? ""].joined(separator: " ").lowercased()
+                return haystack.contains(normalizedQuery)
+            }
+        }
+
+        catalogBooks = books
+        catalogPagination = CatalogResponseDTO.PaginationDTO(
+            page: 1,
+            perPage: catalogPerPage,
+            totalCount: books.count
+        )
+        catalogHasMore = false
+        nextCatalogPage = 1
     }
 }

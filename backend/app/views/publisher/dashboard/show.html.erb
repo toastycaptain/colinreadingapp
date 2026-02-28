@@ -1,0 +1,43 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Dashboard</h2>
+  <form method="get" action="<%= publisher_root_path %>" class="actions" style="margin-bottom: 12px;">
+    <label>
+      Start
+      <input type="date" name="start" value="<%= @start_date %>">
+    </label>
+    <label>
+      End
+      <input type="date" name="end" value="<%= @end_date %>">
+    </label>
+    <button type="submit" class="button">Apply</button>
+  </form>
+  <div class="kpis">
+    <div class="kpi"><strong>Minutes watched</strong><div><%= format("%.2f", @minutes_watched) %></div></div>
+    <div class="kpi"><strong>Unique children (daily sum)</strong><div><%= @unique_children %></div></div>
+    <div class="kpi"><strong>Play starts</strong><div><%= @play_starts %></div></div>
+    <div class="kpi"><strong>Play ends</strong><div><%= @play_ends %></div></div>
+    <div class="kpi"><strong>Avg completion rate</strong><div><%= (@avg_completion_rate * 100).round(2) %>%</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top: 0;">Top Books by Minutes Watched</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Book</th>
+        <th>Minutes Watched</th>
+        <th>Unique Children (daily sum)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @top_books.each do |row| %>
+        <tr>
+          <td><%= link_to row.book_title, publisher_book_path(row.book_id) %></td>
+          <td><%= format("%.2f", row.minutes_watched.to_f) %></td>
+          <td><%= row.unique_children.to_i %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

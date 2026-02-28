@@ -7,7 +7,7 @@ struct RootView: View {
         NavigationStack {
             Group {
                 if appViewModel.jwt == nil {
-                    LoginView()
+                    ChildLibraryView()
                 } else if appViewModel.activeChild == nil {
                     ChildSelectionView()
                 } else {

@@ -1,30 +1,30 @@
 class UsageReportQuery
   PLAY_START = UsageEvent.event_types.fetch("play_start")
   PLAY_END = UsageEvent.event_types.fetch("play_end")
-  HEARTBEAT = UsageEvent.event_types.fetch("heartbeat")
 
-  def initialize(start_date:, end_date:, publisher_id: nil, book_id: nil)
+  def initialize(start_date:, end_date:, publisher_id: nil, book_id: nil, child_profile_id: nil)
     @start_date = start_date
     @end_date = end_date
     @publisher_id = publisher_id
     @book_id = book_id
+    @child_profile_id = child_profile_id
   end
 
   def call
-    relation = UsageEvent
-      .joins(book: :publisher)
-      .where(occurred_at: time_range)
-
-    relation = relation.where(books: { publisher_id: @publisher_id }) if @publisher_id.present?
+    relation = UsageEvent.where(occurred_at: time_range)
     relation = relation.where(book_id: @book_id) if @book_id.present?
+    relation = relation.where(book_id: Book.where(publisher_id: @publisher_id).select(:id)) if @publisher_id.present?
+    relation = relation.where(child_profile_id: @child_profile_id) if @child_profile_id.present?
 
-    relation
+    WatchedSecondsQuery.relation(relation)
+      .joins("INNER JOIN books ON books.id = usage_events.book_id")
+      .joins("INNER JOIN publishers ON publishers.id = books.publisher_id")
       .select(
         "DATE(usage_events.occurred_at) AS report_date",
         "publishers.name AS publisher_name",
         "books.id AS book_id",
         "books.title AS book_title",
-        "COALESCE(SUM(CASE WHEN usage_events.event_type IN (#{PLAY_END}, #{HEARTBEAT}) THEN usage_events.position_seconds ELSE 0 END) / 60.0, 0) AS minutes_watched",
+        "COALESCE(SUM(usage_events.computed_watched_seconds) / 60.0, 0) AS minutes_watched",
         "SUM(CASE WHEN usage_events.event_type = #{PLAY_START} THEN 1 ELSE 0 END) AS play_starts",
         "SUM(CASE WHEN usage_events.event_type = #{PLAY_END} THEN 1 ELSE 0 END) AS play_ends",
         "COUNT(DISTINCT usage_events.child_profile_id) AS unique_children",

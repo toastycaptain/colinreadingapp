@@ -1,0 +1,30 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Statement #<%= @statement.id %></h2>
+  <p><strong>Period:</strong> <%= @statement.payout_period.start_date %> - <%= @statement.payout_period.end_date %></p>
+  <p><strong>Status:</strong> <%= @statement.status %></p>
+  <p><strong>Minutes Watched:</strong> <%= @statement.minutes_watched %></p>
+  <p><strong>Payout Amount (cents):</strong> <%= @statement.payout_amount_cents %></p>
+  <p><strong>Stripe Transfer ID:</strong> <%= @statement.stripe_transfer_id.presence || "N/A" %></p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top: 0;">Book Breakdown</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Book</th>
+        <th>Minutes Watched</th>
+        <th>Gross Revenue (cents)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @breakdown_rows.each do |row| %>
+        <tr>
+          <td><%= row["book_title"] %></td>
+          <td><%= row["minutes_watched"] %></td>
+          <td><%= row["gross_revenue_cents"] %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

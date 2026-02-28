@@ -1,10 +1,11 @@
 # Local Apple/Xcode Toolchain Setup
 
 ## Current machine state
-- Xcode app is not installed.
-- Active developer dir is currently Command Line Tools only:
-  - `/Library/Developer/CommandLineTools`
-- `xcodebuild` is unavailable until full Xcode is installed.
+Verify your active toolchain:
+```bash
+xcode-select -p
+xcodebuild -version
+```
 
 ## Install Xcode
 Option 1 (recommended):
@@ -37,6 +38,16 @@ xcrun simctl list devices
 ```
 
 ## Note for this repo
-`ios/StorytimeApp` currently contains Swift sources only.
-You still need an Xcode project/target to build and run in Simulator.
-Use `ios/LAUNCH_READINESS_CHECKLIST.md` for the expected project wiring.
+`ios/StorytimeApp.xcodeproj` is committed and generated from `ios/project.yml` (XcodeGen).
+Regenerate project files with:
+```bash
+cd ios
+xcodegen generate --spec project.yml
+```
+
+If `xcodebuild` reports missing iOS platform/runtime, install it from:
+Xcode -> Settings -> Components
+or:
+```bash
+xcodebuild -downloadPlatform iOS
+```

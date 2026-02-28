@@ -1,0 +1,64 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Exports</h2>
+  <form method="post" action="<%= publisher_exports_path %>" class="actions">
+    <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+    <label>
+      Export Type
+      <select name="export_type">
+        <option value="analytics_daily">Analytics Daily</option>
+        <option value="statement_breakdown">Statement Breakdown</option>
+      </select>
+    </label>
+    <label>
+      Start
+      <input type="date" name="start_date">
+    </label>
+    <label>
+      End
+      <input type="date" name="end_date">
+    </label>
+    <label>
+      Book (optional)
+      <select name="book_id">
+        <option value="">All</option>
+        <% current_publisher.books.order(:title).each do |book| %>
+          <option value="<%= book.id %>"><%= book.title %></option>
+        <% end %>
+      </select>
+    </label>
+    <button class="button" type="submit">Create Export</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top: 0;">Recent Exports</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Requested By</th>
+        <th>Generated At</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @data_exports.each do |export| %>
+        <tr>
+          <td><%= export.id %></td>
+          <td><%= export.export_type %></td>
+          <td><%= export.status %></td>
+          <td><%= export.requested_by&.email %></td>
+          <td><%= export.generated_at %></td>
+          <td>
+            <%= link_to "View", publisher_export_path(export), class: "button secondary" %>
+            <% if export.ready? %>
+              <%= link_to "Download", download_publisher_export_path(export), class: "button" %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

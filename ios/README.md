@@ -47,8 +47,13 @@ Override with env var:
 
 ## Notes
 
-- Full Xcode GUI tools are not installed in this environment, so this commit includes complete Swift source structure but does not include a generated `.xcodeproj` bundle.
-- To run on-device/simulator, create an iOS App target in Xcode and add files from `ios/StorytimeApp`.
+- Project wiring is now committed:
+  - `ios/StorytimeApp.xcodeproj`
+  - `ios/project.yml` (XcodeGen source of truth)
+- Regenerate project after file-structure changes:
+  - `cd ios && xcodegen generate --spec project.yml`
+- Build for simulator:
+  - `xcodebuild -project ios/StorytimeApp.xcodeproj -scheme StorytimeApp -destination 'generic/platform=iOS Simulator' build`
 - Release/build scaffolding is provided in:
   - `ios/Configs/*.xcconfig`
   - `ios/AppStore/ExportOptions.plist`

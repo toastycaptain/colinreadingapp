@@ -1,7 +1,6 @@
 class RoyaltyCalculator
   PLAY_START = UsageEvent.event_types.fetch("play_start")
   PLAY_END = UsageEvent.event_types.fetch("play_end")
-  HEARTBEAT = UsageEvent.event_types.fetch("heartbeat")
 
   def initialize(
     payout_period:,
@@ -20,7 +19,7 @@ class RoyaltyCalculator
       publisher = Publisher.find(publisher_id)
       publisher_scope = base_scope.where(books: { publisher_id: publisher_id })
 
-      watched_seconds = publisher_scope.where(event_type: [HEARTBEAT, PLAY_END]).sum(:position_seconds)
+      watched_seconds = WatchedSecondsQuery.relation(publisher_scope).sum("usage_events.computed_watched_seconds")
       minutes_watched = (watched_seconds.to_f / 60.0).round(2)
       play_starts = publisher_scope.where(event_type: PLAY_START).count
       play_ends = publisher_scope.where(event_type: PLAY_END).count
@@ -69,14 +68,13 @@ class RoyaltyCalculator
   end
 
   def book_breakdown(publisher_scope)
-    rows = publisher_scope
-      .joins(:book)
-      .where(event_type: [HEARTBEAT, PLAY_END])
+    rows = WatchedSecondsQuery.relation(publisher_scope)
+      .joins("INNER JOIN books ON books.id = usage_events.book_id")
       .group("books.id", "books.title")
       .select(
         "books.id AS book_id",
         "books.title AS book_title",
-        "SUM(usage_events.position_seconds) AS watched_seconds"
+        "SUM(usage_events.computed_watched_seconds) AS watched_seconds"
       )
 
     rows.map do |row|

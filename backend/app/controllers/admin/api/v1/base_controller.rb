@@ -14,4 +14,16 @@ class Admin::Api::V1::BaseController < ApplicationController
 
     render_error(code: "forbidden", message: "Finance admin role required", status: :forbidden)
   end
+
+  def require_analytics_admin!
+    return if current_admin_user&.can_manage_analytics?
+
+    render_error(code: "forbidden", message: "Analytics admin role required", status: :forbidden)
+  end
+
+  def require_compliance_admin!
+    return if current_admin_user&.can_manage_compliance?
+
+    render_error(code: "forbidden", message: "Compliance admin role required", status: :forbidden)
+  end
 end

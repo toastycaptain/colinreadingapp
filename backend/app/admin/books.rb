@@ -103,6 +103,24 @@ ActiveAdmin.register Book do
 
   member_action :upload_master_video, method: :get do
     @book = resource
+    @video_asset = @book.video_asset
+    @latest_mux_webhook = latest_mux_webhook_for(@video_asset)
     render "admin/books/upload_master_video"
+  end
+
+  controller do
+    private
+
+    def latest_mux_webhook_for(video_asset)
+      return nil if video_asset.blank?
+
+      lookup_terms = [video_asset.mux_upload_id, video_asset.mux_asset_id, video_asset.mux_playback_id].compact
+      return nil if lookup_terms.empty?
+
+      query = lookup_terms.map.with_index { |_, idx| "payload::text ILIKE :term#{idx}" }.join(" OR ")
+      binds = lookup_terms.each_with_index.to_h { |term, idx| ["term#{idx}".to_sym, "%#{term}%"] }
+
+      WebhookEvent.where(provider: "mux").where(query, binds).order(created_at: :desc).first
+    end
   end
 end

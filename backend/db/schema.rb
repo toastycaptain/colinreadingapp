@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_28_002100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -26,6 +26,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
     t.index ["email"], name: "index_admin_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
     t.index ["role"], name: "index_admin_users_on_role"
+  end
+
+  create_table "audit_logs", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "actor_id"
+    t.string "actor_type"
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "occurred_at", null: false
+    t.bigint "subject_id"
+    t.string "subject_type"
+    t.datetime "updated_at", null: false
+    t.index ["action"], name: "index_audit_logs_on_action"
+    t.index ["actor_type", "actor_id"], name: "index_audit_logs_on_actor_type_and_actor_id"
+    t.index ["occurred_at"], name: "index_audit_logs_on_occurred_at"
+    t.index ["subject_type", "subject_id"], name: "index_audit_logs_on_subject_type_and_subject_id"
   end
 
   create_table "books", force: :cascade do |t|
@@ -74,6 +90,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
     t.index ["metric_date", "publisher_id", "book_id"], name: "idx_daily_metrics_date_pub_book", unique: true
     t.index ["metric_date"], name: "index_daily_metrics_on_metric_date"
     t.index ["publisher_id"], name: "index_daily_metrics_on_publisher_id"
+  end
+
+  create_table "data_exports", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.integer "export_type", null: false
+    t.string "file_url"
+    t.datetime "generated_at"
+    t.jsonb "params", default: {}, null: false
+    t.bigint "publisher_id"
+    t.bigint "requested_by_id", null: false
+    t.string "requested_by_type", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["publisher_id"], name: "index_data_exports_on_publisher_id"
+    t.index ["requested_by_type", "requested_by_id"], name: "index_data_exports_on_requested_by"
+    t.index ["status"], name: "index_data_exports_on_status"
   end
 
   create_table "deletion_requests", force: :cascade do |t|
@@ -188,6 +221,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
     t.index ["stripe_transfer_id"], name: "index_publisher_statements_on_stripe_transfer_id"
   end
 
+  create_table "publisher_users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.bigint "publisher_id", null: false
+    t.datetime "remember_created_at"
+    t.datetime "reset_password_sent_at"
+    t.string "reset_password_token"
+    t.integer "role", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_publisher_users_on_email", unique: true
+    t.index ["publisher_id", "role"], name: "index_publisher_users_on_publisher_id_and_role"
+    t.index ["publisher_id"], name: "index_publisher_users_on_publisher_id"
+    t.index ["reset_password_token"], name: "index_publisher_users_on_reset_password_token", unique: true
+  end
+
   create_table "publishers", force: :cascade do |t|
     t.string "billing_email"
     t.string "contact_name"
@@ -219,16 +268,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
   create_table "usage_events", force: :cascade do |t|
     t.bigint "book_id", null: false
     t.bigint "child_profile_id", null: false
+    t.string "client_event_id"
     t.datetime "created_at", null: false
     t.integer "event_type", null: false
     t.jsonb "metadata", default: {}, null: false
     t.datetime "occurred_at", null: false
+    t.bigint "playback_session_id"
     t.integer "position_seconds"
     t.datetime "updated_at", null: false
+    t.integer "watched_seconds"
     t.index ["book_id"], name: "index_usage_events_on_book_id"
     t.index ["child_profile_id", "book_id", "occurred_at"], name: "idx_usage_events_child_book_occurred"
     t.index ["child_profile_id"], name: "index_usage_events_on_child_profile_id"
+    t.index ["client_event_id"], name: "index_usage_events_on_client_event_id", unique: true, where: "(client_event_id IS NOT NULL)"
     t.index ["event_type"], name: "index_usage_events_on_event_type"
+    t.index ["playback_session_id"], name: "index_usage_events_on_playback_session_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -285,6 +339,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
   add_foreign_key "child_profiles", "users"
   add_foreign_key "daily_metrics", "books"
   add_foreign_key "daily_metrics", "publishers"
+  add_foreign_key "data_exports", "publishers"
   add_foreign_key "deletion_requests", "child_profiles"
   add_foreign_key "deletion_requests", "users"
   add_foreign_key "library_items", "books"
@@ -296,9 +351,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_26_105000) do
   add_foreign_key "playback_sessions", "child_profiles"
   add_foreign_key "publisher_statements", "payout_periods"
   add_foreign_key "publisher_statements", "publishers"
+  add_foreign_key "publisher_users", "publishers"
   add_foreign_key "rights_windows", "books"
   add_foreign_key "rights_windows", "publishers"
   add_foreign_key "usage_events", "books"
   add_foreign_key "usage_events", "child_profiles"
+  add_foreign_key "usage_events", "playback_sessions", on_delete: :nullify
   add_foreign_key "video_assets", "books"
 end

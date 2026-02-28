@@ -4,16 +4,70 @@
     Book: <strong><%= @book.title %></strong> (ID: <%= @book.id %>)
   </p>
   <p>
-    This requests a one-time Mux Direct Upload URL and uploads the selected file straight to Mux.
-    Processing status will update when webhooks are received.
+    This workflow creates a one-time Mux direct upload URL and uploads the selected file directly to Mux.
   </p>
 
-  <div style="margin-bottom: 12px;">
+  <h4>Current Asset Status</h4>
+  <% if @video_asset.present? %>
+    <table class="index_table">
+      <tbody>
+        <tr>
+          <th>Status</th>
+          <td><%= status_tag(@video_asset.processing_status) %></td>
+        </tr>
+        <tr>
+          <th>Mux Upload ID</th>
+          <td><%= @video_asset.mux_upload_id.presence || "N/A" %></td>
+        </tr>
+        <tr>
+          <th>Mux Asset ID</th>
+          <td><%= @video_asset.mux_asset_id.presence || "N/A" %></td>
+        </tr>
+        <tr>
+          <th>Mux Playback ID</th>
+          <td><%= @video_asset.mux_playback_id.presence || "N/A" %></td>
+        </tr>
+        <tr>
+          <th>Last Error</th>
+          <td><%= @video_asset.mux_error_message.presence || "None" %></td>
+        </tr>
+      </tbody>
+    </table>
+  <% else %>
+    <p>No video asset exists yet for this book.</p>
+  <% end %>
+
+  <% if @latest_mux_webhook.present? %>
+    <h4>Latest Mux Webhook</h4>
+    <table class="index_table">
+      <tbody>
+        <tr>
+          <th>Type</th>
+          <td><%= @latest_mux_webhook.event_type %></td>
+        </tr>
+        <tr>
+          <th>Status</th>
+          <td><%= @latest_mux_webhook.status %></td>
+        </tr>
+        <tr>
+          <th>Received At</th>
+          <td><%= @latest_mux_webhook.created_at %></td>
+        </tr>
+      </tbody>
+    </table>
+  <% end %>
+
+  <div style="margin-top: 16px;">
     <label for="master-video-file">Choose video file</label><br>
     <input id="master-video-file" type="file" accept="video/*" />
   </div>
 
-  <button id="upload-master-video-btn" class="button">Create Upload URL and Upload</button>
+  <button id="upload-master-video-btn" class="button" style="margin-top: 12px;">Create Upload URL and Upload</button>
+
+  <div style="margin-top: 12px; max-width: 480px;">
+    <progress id="upload-progress" max="100" value="0" style="width: 100%;"></progress>
+    <div id="upload-progress-label" style="font-size: 12px; margin-top: 4px; color: #555;">0%</div>
+  </div>
   <p id="upload-status" style="margin-top: 12px;"></p>
 
   <p style="margin-top: 16px;">
@@ -26,15 +80,46 @@
     const button = document.getElementById("upload-master-video-btn");
     const fileInput = document.getElementById("master-video-file");
     const status = document.getElementById("upload-status");
+    const progress = document.getElementById("upload-progress");
+    const progressLabel = document.getElementById("upload-progress-label");
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content;
     const bookId = <%= @book.id %>;
 
-    if (!button || !fileInput || !status) return;
+    if (!button || !fileInput || !status || !progress || !progressLabel) return;
 
     const setStatus = (text, isError = false) => {
       status.textContent = text;
       status.style.color = isError ? "#b91c1c" : "#166534";
     };
+
+    const setProgress = (value) => {
+      progress.value = value;
+      progressLabel.textContent = `${value}%`;
+    };
+
+    const uploadFileWithProgress = (uploadUrl, file) => new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+
+      xhr.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+        setProgress(percent);
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setProgress(100);
+          resolve();
+        } else {
+          reject(new Error(`Mux upload failed (${xhr.status})`));
+        }
+      });
+
+      xhr.addEventListener("error", () => reject(new Error("Upload failed due to a network error.")));
+      xhr.send(file);
+    });
 
     button.addEventListener("click", async () => {
       const file = fileInput.files[0];
@@ -44,6 +129,7 @@
       }
 
       button.disabled = true;
+      setProgress(0);
       setStatus("Creating Mux upload URL...");
 
       try {
@@ -58,27 +144,17 @@
         });
 
         if (!createResponse.ok) {
-          throw new Error(`Failed to create direct upload (${createResponse.status})`);
+          const errorPayload = await createResponse.json().catch(() => ({}));
+          throw new Error(errorPayload?.error?.message || `Failed to create direct upload (${createResponse.status})`);
         }
 
         const payload = await createResponse.json();
         setStatus("Uploading file to Mux...");
+        await uploadFileWithProgress(payload.upload_url, file);
 
-        const uploadResponse = await fetch(payload.upload_url, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type || "video/mp4",
-          },
-          body: file,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Mux upload failed (${uploadResponse.status})`);
-        }
-
-        setStatus(`Upload complete (upload id: ${payload.upload_id}). Waiting for Mux processing webhook...`);
+        setStatus(`Upload complete (upload id: ${payload.upload_id}). Processing status will update after webhooks are received.`);
       } catch (error) {
-        setStatus(error.message || "Upload failed", true);
+        setStatus(error.message || "Upload failed.", true);
       } finally {
         button.disabled = false;
       }

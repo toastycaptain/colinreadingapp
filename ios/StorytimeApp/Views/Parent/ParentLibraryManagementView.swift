@@ -19,6 +19,10 @@ struct ParentLibraryManagementView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
+                        NavigationLink("Open") {
+                            ChildPlayerView(book: book)
+                        }
+                        .buttonStyle(.bordered)
                         Button("Remove", role: .destructive) {
                             Task {
                                 await appViewModel.removeBookFromActiveChild(bookID: book.id)

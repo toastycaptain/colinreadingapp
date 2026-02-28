@@ -21,4 +21,12 @@ class User < ApplicationRecord
   def active_parental_consent?
     parental_consents.where(revoked_at: nil).exists?
   end
+
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[created_at email id privacy_policy_accepted_at privacy_policy_version_accepted role updated_at]
+  end
+
+  def self.ransackable_associations(_auth_object = nil)
+    %w[child_profiles deletion_requests parental_consents]
+  end
 end

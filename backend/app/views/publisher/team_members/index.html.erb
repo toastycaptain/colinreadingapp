@@ -1,0 +1,44 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Team Members</h2>
+  <form method="post" action="<%= publisher_team_members_path %>" class="actions" style="margin-bottom: 12px;">
+    <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+    <label>
+      Email
+      <input type="email" name="email" required>
+    </label>
+    <label>
+      Role
+      <select name="role">
+        <% PublisherUser.roles.keys.each do |role| %>
+          <option value="<%= role %>"><%= role %></option>
+        <% end %>
+      </select>
+    </label>
+    <button type="submit" class="button">Add Team Member</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Created</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @team_members.each do |member| %>
+        <tr>
+          <td><%= member.email %></td>
+          <td><%= member.role %></td>
+          <td><%= member.created_at %></td>
+          <td>
+            <% if member != current_publisher_user %>
+              <%= button_to "Remove", publisher_team_member_path(member), method: :delete, class: "button secondary" %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

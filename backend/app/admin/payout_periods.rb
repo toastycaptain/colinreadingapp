@@ -21,9 +21,12 @@ ActiveAdmin.register PayoutPeriod do
     column :total_payout_cents
     column :calculated_at
     column :paid_at
+    column("Failure Reason") { |period| period.failed? ? period.notes : nil }
     actions defaults: true do |period|
-      if period.draft? || period.failed?
+      if period.draft?
         item "Generate", generate_statements_admin_payout_period_path(period), method: :post, class: "member_link"
+      elsif !period.calculating?
+        item "Re-run", rerun_admin_payout_period_path(period), method: :post, class: "member_link"
       end
       if period.ready?
         item "Mark Paid", mark_paid_admin_payout_period_path(period), method: :post, class: "member_link"
@@ -48,6 +51,7 @@ ActiveAdmin.register PayoutPeriod do
       row :calculated_at
       row :paid_at
       row :notes
+      row("Failure Reason") { |period| period.failed? ? period.notes : nil }
       row :created_at
       row :updated_at
     end
@@ -67,8 +71,12 @@ ActiveAdmin.register PayoutPeriod do
     end
   end
 
-  action_item :generate_statements, only: :show, if: proc { resource.draft? || resource.failed? } do
+  action_item :generate_statements, only: :show, if: proc { resource.draft? } do
     link_to "Generate Statements", generate_statements_admin_payout_period_path(resource), method: :post
+  end
+
+  action_item :rerun, only: :show, if: proc { !resource.calculating? && !resource.draft? } do
+    link_to "Re-run Calculation", rerun_admin_payout_period_path(resource), method: :post
   end
 
   action_item :mark_paid, only: :show, if: proc { resource.ready? } do
@@ -81,8 +89,22 @@ ActiveAdmin.register PayoutPeriod do
     redirect_to resource_path, notice: "Statement generation enqueued"
   end
 
+  member_action :rerun, method: :post do
+    GeneratePayoutStatementsJob.perform_later(resource.id)
+    resource.update!(status: :calculating, notes: nil)
+    redirect_to resource_path, notice: "Recalculation enqueued"
+  end
+
   member_action :mark_paid, method: :post do
     ProcessStripePayoutJob.perform_later(resource.id)
+    if defined?(AuditLog)
+      AuditLog.record!(
+        actor: current_admin_user,
+        action: "mark_payout_period_paid",
+        subject: resource,
+        metadata: { path: request.fullpath },
+      )
+    end
     redirect_to resource_path, notice: "Payout processing enqueued"
   end
 end

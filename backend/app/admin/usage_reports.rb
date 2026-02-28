@@ -6,12 +6,15 @@ ActiveAdmin.register_page "Usage Reports" do
     end_date = params[:end].presence || Date.current.to_s
     publisher_id = params[:publisher_id].presence
     book_id = params[:book_id].presence
+    child_profile_id = params[:child_profile_id].presence
+    can_view_child_data = current_admin_user&.can_manage_support?
 
     rows = UsageReportQuery.new(
       start_date: Date.parse(start_date),
       end_date: Date.parse(end_date),
       publisher_id: publisher_id,
       book_id: book_id,
+      child_profile_id: (can_view_child_data ? child_profile_id : nil),
     ).call
 
     panel "Filters" do
@@ -52,6 +55,12 @@ ActiveAdmin.register_page "Usage Reports" do
                 end
               end
             end
+            if can_view_child_data
+              div do
+                label "Child Profile ID", for: "child_profile_id"
+                input type: "number", name: "child_profile_id", value: child_profile_id
+              end
+            end
             div do
               input type: "submit", value: "Apply"
             end
@@ -59,6 +68,7 @@ ActiveAdmin.register_page "Usage Reports" do
               csv_url = "/admin/api/v1/reports/usage.csv?start=#{start_date}&end=#{end_date}"
               csv_url += "&publisher_id=#{publisher_id}" if publisher_id.present?
               csv_url += "&book_id=#{book_id}" if book_id.present?
+              csv_url += "&child_profile_id=#{child_profile_id}" if child_profile_id.present? && can_view_child_data
               a "Export CSV", href: csv_url, class: "button"
             end
           end

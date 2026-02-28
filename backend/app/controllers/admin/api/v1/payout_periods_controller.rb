@@ -22,10 +22,22 @@ class Admin::Api::V1::PayoutPeriodsController < Admin::Api::V1::BaseController
   def mark_paid
     if params[:use_stripe].to_s == "true"
       ProcessStripePayoutJob.perform_later(@payout_period.id)
+      AuditLog.record!(
+        actor: current_admin_user,
+        action: "mark_payout_period_paid",
+        subject: @payout_period,
+        metadata: { source: "admin_api", path: request.fullpath },
+      ) if defined?(AuditLog)
       render json: { status: "enqueued", payout_period_id: @payout_period.id }
     else
       @payout_period.publisher_statements.update_all(status: PublisherStatement.statuses.fetch("paid"))
       @payout_period.update!(status: :paid, paid_at: Time.current)
+      AuditLog.record!(
+        actor: current_admin_user,
+        action: "mark_payout_period_paid",
+        subject: @payout_period,
+        metadata: { source: "admin_api", path: request.fullpath },
+      ) if defined?(AuditLog)
       render json: serialize(@payout_period, include_statements: true)
     end
   end

@@ -70,5 +70,17 @@ ActiveAdmin.register Publisher do
         column :status
       end
     end
+
+    panel "Publisher Users" do
+      table_for publisher.publisher_users.order(created_at: :desc).limit(10) do
+        column(:id) { |user| link_to(user.id, admin_publisher_user_path(user)) }
+        column :email
+        column :role
+        column :created_at
+      end
+      div do
+        link_to "Invite Publisher User", new_admin_publisher_user_path(publisher_user: { publisher_id: publisher.id })
+      end
+    end
   end
 end

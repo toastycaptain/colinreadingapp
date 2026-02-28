@@ -1,7 +1,6 @@
 class DailyMetricsAggregator
   PLAY_START = UsageEvent.event_types.fetch("play_start")
   PLAY_END = UsageEvent.event_types.fetch("play_end")
-  HEARTBEAT = UsageEvent.event_types.fetch("heartbeat")
 
   def initialize(metric_date: Date.current)
     @metric_date = metric_date
@@ -33,10 +32,12 @@ class DailyMetricsAggregator
   private
 
   def aggregated_rows
-    UsageEvent
-      .joins(book: :publisher)
-      .left_joins(book: :video_asset)
-      .where(occurred_at: @metric_date.beginning_of_day..@metric_date.end_of_day)
+    base_scope = UsageEvent.where(occurred_at: @metric_date.beginning_of_day..@metric_date.end_of_day)
+
+    WatchedSecondsQuery.relation(base_scope)
+      .joins("INNER JOIN books ON books.id = usage_events.book_id")
+      .joins("INNER JOIN publishers ON publishers.id = books.publisher_id")
+      .joins("LEFT JOIN video_assets ON video_assets.book_id = books.id")
       .group("books.publisher_id", "usage_events.book_id")
       .select(
         "books.publisher_id AS publisher_id",
@@ -44,7 +45,7 @@ class DailyMetricsAggregator
         "SUM(CASE WHEN usage_events.event_type = #{PLAY_START} THEN 1 ELSE 0 END) AS play_starts",
         "SUM(CASE WHEN usage_events.event_type = #{PLAY_END} THEN 1 ELSE 0 END) AS play_ends",
         "COUNT(DISTINCT usage_events.child_profile_id) AS unique_children",
-        "COALESCE(SUM(CASE WHEN usage_events.event_type IN (#{PLAY_END}, #{HEARTBEAT}) THEN usage_events.position_seconds ELSE 0 END) / 60.0, 0) AS minutes_watched",
+        "COALESCE(SUM(usage_events.computed_watched_seconds) / 60.0, 0) AS minutes_watched",
         "COALESCE(AVG(CASE WHEN usage_events.event_type = #{PLAY_END} AND video_assets.duration_seconds > 0 THEN LEAST(usage_events.position_seconds::numeric / video_assets.duration_seconds, 1.0) ELSE NULL END), 0) AS avg_completion_rate",
       )
   end

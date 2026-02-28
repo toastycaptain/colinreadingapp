@@ -8,4 +8,12 @@ class ChildProfile < ApplicationRecord
   has_many :deletion_requests, dependent: :nullify
 
   validates :name, presence: true
+
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[avatar_url created_at id name pin_hash updated_at user_id]
+  end
+
+  def self.ransackable_associations(_auth_object = nil)
+    %w[books deletion_requests library_items usage_events user]
+  end
 end

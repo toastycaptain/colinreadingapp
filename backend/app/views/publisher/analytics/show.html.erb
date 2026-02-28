@@ -1,0 +1,73 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Analytics</h2>
+  <form method="get" action="<%= publisher_analytics_path %>" class="actions" style="margin-bottom: 12px;">
+    <label>
+      Start
+      <input type="date" name="start" value="<%= @start_date %>">
+    </label>
+    <label>
+      End
+      <input type="date" name="end" value="<%= @end_date %>">
+    </label>
+    <label>
+      Book
+      <select name="book_id">
+        <option value="">All</option>
+        <% @books.each do |book| %>
+          <option value="<%= book.id %>" <%= "selected" if @book_id.to_s == book.id.to_s %>><%= book.title %></option>
+        <% end %>
+      </select>
+    </label>
+    <button type="submit" class="button">Apply</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top: 0;">Minutes Watched Over Time</h3>
+  <% max_minutes = [@daily_rows.map { |row| row[:minutes_watched].to_f }.max.to_f, 1.0].max %>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Book</th>
+        <th>Minutes</th>
+        <th>Unique Children</th>
+        <th>Completion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @daily_rows.each do |row| %>
+        <tr>
+          <td><%= row[:date] %></td>
+          <td><%= row[:book_title] %></td>
+          <td>
+            <%= format("%.2f", row[:minutes_watched]) %>
+            <div class="bar" style="width:<%= ((row[:minutes_watched].to_f / max_minutes) * 220).round %>px;"></div>
+          </td>
+          <td><%= row[:unique_children] %></td>
+          <td><%= (row[:avg_completion_rate].to_f * 100).round(2) %>%</td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3 style="margin-top: 0;">Top Books</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Book</th>
+        <th>Minutes Watched</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @top_books.each do |row| %>
+        <tr>
+          <td><%= link_to row[:book_title], publisher_book_path(row[:book_id]) %></td>
+          <td><%= format("%.2f", row[:minutes_watched]) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

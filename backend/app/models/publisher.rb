@@ -5,6 +5,8 @@ class Publisher < ApplicationRecord
   has_many :partnership_contracts, dependent: :destroy
   has_many :publisher_statements, dependent: :destroy
   has_many :rights_windows, dependent: :destroy
+  has_many :publisher_users, dependent: :destroy
+  has_many :data_exports, dependent: :nullify
 
   validates :name, presence: true, uniqueness: true
   validates :stripe_connect_account_id, uniqueness: true, allow_blank: true
@@ -14,6 +16,6 @@ class Publisher < ApplicationRecord
   end
 
   def self.ransackable_associations(_auth_object = nil)
-    %w[books partnership_contracts publisher_statements rights_windows]
+    %w[books data_exports partnership_contracts publisher_statements publisher_users rights_windows]
   end
 end

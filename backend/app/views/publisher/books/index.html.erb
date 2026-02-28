@@ -1,0 +1,28 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Books</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Author</th>
+        <th>Status</th>
+        <th>Category</th>
+        <th>Rights Active</th>
+        <th>Video Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @books.each do |book| %>
+        <% active_right = book.rights_windows.active_at(Time.current).exists? %>
+        <tr>
+          <td><%= link_to book.title, publisher_book_path(book) %></td>
+          <td><%= book.author %></td>
+          <td><%= book.status %></td>
+          <td><%= book.category %></td>
+          <td><%= active_right ? "Active" : "Inactive" %></td>
+          <td><%= book.video_asset&.processing_status || "missing" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

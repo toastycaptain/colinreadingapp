@@ -45,9 +45,35 @@ ActiveAdmin.register PublisherStatement do
       row :calculated_at
       row :created_at
       row :updated_at
-      row :breakdown do |statement|
-        pre JSON.pretty_generate(statement.breakdown || {})
+    end
+
+    panel "Book Breakdown" do
+      rows = Array.wrap(publisher_statement.breakdown).select do |row|
+        row.is_a?(Hash) && (row["book_id"].present? || row[:book_id].present? || row["book_title"].present? || row[:book_title].present?)
       end
+
+      if rows.empty?
+        div "No breakdown rows recorded."
+      else
+        table_for rows do
+          column("Book") do |row|
+            book_id = row["book_id"] || row[:book_id]
+            book_title = row["book_title"] || row[:book_title]
+
+            if book_id.present?
+              link_to(book_title, admin_book_path(book_id))
+            else
+              book_title
+            end
+          end
+          column("Minutes Watched") { |row| format("%.2f", (row["minutes_watched"] || row[:minutes_watched]).to_f) }
+          column("Gross Revenue (cents)") { |row| row["gross_revenue_cents"] || row[:gross_revenue_cents] }
+        end
+      end
+    end
+
+    panel "Raw Breakdown JSON" do
+      pre JSON.pretty_generate(publisher_statement.breakdown || {})
     end
   end
 end

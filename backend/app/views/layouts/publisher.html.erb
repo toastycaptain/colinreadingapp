@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Storytime Publisher Portal</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f6f8fb; color: #0f172a; }
+      .nav { background: #0b1220; color: #f8fafc; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+      .nav a { color: #e2e8f0; margin-right: 16px; text-decoration: none; font-size: 14px; }
+      .nav a:hover { color: #ffffff; }
+      .content { max-width: 1200px; margin: 24px auto; padding: 0 20px 24px; }
+      .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .kpi { border: 1px solid #dbeafe; background: #eff6ff; border-radius: 8px; padding: 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 8px; }
+      .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+      .flash.notice { background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0; }
+      .flash.alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .button { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; text-decoration: none; cursor: pointer; }
+      .button.secondary { background: #475569; }
+      .bar { height: 10px; border-radius: 4px; background: #2563eb; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <div>
+        <strong style="margin-right: 16px;">Publisher Portal</strong>
+        <%= link_to "Dashboard", publisher_root_path %>
+        <%= link_to "Books", publisher_books_path %>
+        <%= link_to "Analytics", publisher_analytics_path %>
+        <% if current_publisher_user&.can_view_statements? %>
+          <%= link_to "Statements", publisher_statements_path %>
+        <% end %>
+        <% if current_publisher_user&.can_manage_exports? %>
+          <%= link_to "Exports", publisher_exports_path %>
+        <% end %>
+        <% if current_publisher_user&.owner? %>
+          <%= link_to "Team", publisher_team_members_path %>
+        <% end %>
+      </div>
+      <div>
+        <span style="margin-right: 8px;"><%= current_publisher_user.email %></span>
+        <%= link_to "Change Password", new_publisher_user_password_path %>
+        <%= button_to "Logout", destroy_publisher_user_session_path, method: :delete, style: "display:inline-block; margin-left:8px;" %>
+      </div>
+    </div>
+    <div class="content">
+      <% flash.each do |type, message| %>
+        <div class="flash <%= type %>"><%= message %></div>
+      <% end %>
+      <%= yield %>
+    </div>
+  </body>
+</html>

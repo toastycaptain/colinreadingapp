@@ -9,7 +9,8 @@ ActiveAdmin.register_page "Dashboard" do
     failed_count = VideoAsset.failed.count
     pending_payout_periods = PayoutPeriod.where(status: [:draft, :calculating, :ready]).count
     recent_events = UsageEvent.where(occurred_at: 7.days.ago..Time.current)
-    recent_minutes = recent_events.where(event_type: [UsageEvent.event_types["heartbeat"], UsageEvent.event_types["play_end"]]).sum(:position_seconds).to_f / 60.0
+    recent_seconds = WatchedSecondsQuery.relation(recent_events).sum("usage_events.computed_watched_seconds")
+    recent_minutes = recent_seconds.to_f / 60.0
     recent_play_starts = recent_events.where(event_type: UsageEvent.event_types["play_start"]).count
     expiring_rights = RightsWindow.includes(:book, :publisher).where(end_at: Time.current..30.days.from_now).order(:end_at).limit(10)
 

@@ -1,7 +1,7 @@
 require "csv"
 
 class Admin::Api::V1::ReportsController < Admin::Api::V1::BaseController
-  before_action :require_finance_admin!
+  before_action :require_analytics_admin!
 
   def usage
     rows = UsageReportQuery.new(
@@ -9,6 +9,7 @@ class Admin::Api::V1::ReportsController < Admin::Api::V1::BaseController
       end_date: parsed_date_param(:end, Date.current),
       publisher_id: params[:publisher_id],
       book_id: params[:book_id],
+      child_profile_id: params[:child_profile_id],
     ).call
 
     respond_to do |format|

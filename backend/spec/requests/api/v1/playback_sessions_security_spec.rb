@@ -42,6 +42,7 @@ RSpec.describe "Playback session security", type: :request do
            headers: auth_headers_for(parent)
 
       expect(response).to have_http_status(:ok)
+      expect(json["playback_session_id"]).to be_present
       expect(json["playback_hls_url"]).to eq("https://stream.mux.com/abc123.m3u8")
       expect(json["playback_token"]).to eq("signed.jwt.token")
       expect(json["expires_at"]).to be_present

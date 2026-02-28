@@ -35,7 +35,7 @@ class Api::V1::PlaybackSessionsController < Api::V1::BaseController
     playback_token = MuxSigning.new.token_for(playback_id, exp: expires_at)
     playback_hls_url = "https://stream.mux.com/#{playback_id}.m3u8"
 
-    PlaybackSession.create!(
+    playback_session = PlaybackSession.create!(
       child_profile: @child,
       book: book,
       issued_at: Time.current,
@@ -43,6 +43,7 @@ class Api::V1::PlaybackSessionsController < Api::V1::BaseController
     )
 
     render json: {
+      playback_session_id: playback_session.id,
       playback_hls_url: playback_hls_url,
       playback_token: playback_token,
       expires_at: expires_at.iso8601,

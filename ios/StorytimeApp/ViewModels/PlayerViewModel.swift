@@ -42,10 +42,6 @@ final class PlayerViewModel: ObservableObject {
         self.continueWatchingStore = continueWatchingStore
     }
 
-    deinit {
-        cleanup()
-    }
-
     func preparePlayback(for book: BookDTO, childID: Int) async {
         currentBook = book
         currentChildID = childID
@@ -138,6 +134,11 @@ final class PlayerViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        if book.id == DemoContent.howToBook.id {
+            playLocalDemoBook(book: book, childID: childID, resumeFromSeconds: resumeFromSeconds, eventType: eventType)
+            return
+        }
+
         do {
             let session = try await apiClient.createPlaybackSession(childID: childID, bookID: book.id)
             let playbackURL = try buildPlaybackURL(from: session)
@@ -162,6 +163,25 @@ final class PlayerViewModel: ObservableObject {
             isLoading = false
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func playLocalDemoBook(book: BookDTO, childID: Int, resumeFromSeconds: Int?, eventType: String) {
+        let item = AVPlayerItem(url: DemoContent.howToPlaybackURL)
+        player.replaceCurrentItem(with: item)
+        observePlayerItem(item, resumeFromSeconds: resumeFromSeconds)
+        observeTimeUpdates()
+
+        player.play()
+        isPlaying = true
+
+        usageLogger.logEvent(
+            childID: childID,
+            bookID: book.id,
+            eventType: eventType,
+            positionSeconds: resumeFromSeconds
+        )
+
+        startHeartbeatIfNeeded()
     }
 
     private func observePlayerItem(_ item: AVPlayerItem, resumeFromSeconds: Int?) {

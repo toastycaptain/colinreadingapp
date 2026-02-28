@@ -26,15 +26,16 @@ final class APIClient {
     }
 
     func register(email: String, password: String, consentAccepted: Bool, policyVersion: String) async throws -> AuthResponseDTO {
-        try await send(
+        let payload = RegisterRequestDTO(
+            email: email,
+            password: password,
+            consentAccepted: consentAccepted,
+            policyVersion: policyVersion
+        )
+        return try await send(
             path: "auth/register",
             method: "POST",
-            body: [
-                "email": email,
-                "password": password,
-                "consent_accepted": consentAccepted,
-                "policy_version": policyVersion,
-            ],
+            body: payload,
             requiresAuth: false
         )
     }
@@ -129,6 +130,11 @@ final class APIClient {
         return try await request(url: url, method: method, body: body, requiresAuth: requiresAuth)
     }
 
+    private func send<T: Decodable>(path: String, method: String, requiresAuth: Bool = true) async throws -> T {
+        let url = baseURL.appendingPathComponent(path)
+        return try await request(url: url, method: method, body: Optional<EmptyBody>.none, requiresAuth: requiresAuth)
+    }
+
     private func sendEmpty(path: String, method: String, requiresAuth: Bool = true) async throws -> Bool {
         let url = baseURL.appendingPathComponent(path)
         let _: EmptyResponse = try await request(url: url, method: method, body: Optional<EmptyBody>.none, requiresAuth: requiresAuth)
@@ -189,4 +195,17 @@ final class APIClient {
 
     private struct EmptyBody: Encodable {}
     private struct EmptyResponse: Decodable {}
+    private struct RegisterRequestDTO: Encodable {
+        let email: String
+        let password: String
+        let consentAccepted: Bool
+        let policyVersion: String
+
+        enum CodingKeys: String, CodingKey {
+            case email
+            case password
+            case consentAccepted = "consent_accepted"
+            case policyVersion = "policy_version"
+        }
+    }
 }

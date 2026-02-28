@@ -2,6 +2,13 @@ Rails.application.routes.draw do
   require "sidekiq/web"
 
   devise_for :admin_users, ActiveAdmin::Devise.config.merge(sign_out_via: [:delete, :post])
+  devise_for :publisher_users,
+             path: "publisher",
+             path_names: { sign_in: "login", sign_out: "logout" },
+             controllers: {
+               sessions: "publisher/sessions",
+               passwords: "publisher/passwords",
+             }
   ActiveAdmin.routes(self)
   authenticate :admin_user, lambda { |admin| admin.super_admin? } do
     mount Sidekiq::Web => "/admin/sidekiq"
@@ -10,6 +17,19 @@ Rails.application.routes.draw do
   post "/webhooks/mux", to: "webhooks/mux#receive"
 
   devise_for :users, skip: :all
+
+  namespace :publisher do
+    root to: "dashboard#show"
+    resources :books, only: [:index, :show]
+    resource :analytics, only: [:show]
+    resources :statements, only: [:index, :show]
+    resources :exports, only: [:index, :create, :show] do
+      member do
+        get :download
+      end
+    end
+    resources :team_members, only: [:index, :create, :destroy]
+  end
 
   devise_scope :user do
     post "api/v1/auth/register", to: "api/v1/auth/registrations#create"

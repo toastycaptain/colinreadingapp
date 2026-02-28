@@ -1,0 +1,18 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Export #<%= @data_export.id %></h2>
+  <p><strong>Type:</strong> <%= @data_export.export_type %></p>
+  <p><strong>Status:</strong> <%= @data_export.status %></p>
+  <p><strong>Requested by:</strong> <%= @data_export.requested_by&.email %></p>
+  <p><strong>Generated at:</strong> <%= @data_export.generated_at || "Pending" %></p>
+  <% if @data_export.error_message.present? %>
+    <p><strong>Error:</strong> <%= @data_export.error_message %></p>
+  <% end %>
+  <% if @data_export.ready? %>
+    <div class="actions">
+      <%= link_to "Download CSV", download_publisher_export_path(@data_export), class: "button" %>
+      <%= link_to "Back", publisher_exports_path, class: "button secondary" %>
+    </div>
+  <% else %>
+    <%= link_to "Back", publisher_exports_path, class: "button secondary" %>
+  <% end %>
+</div>

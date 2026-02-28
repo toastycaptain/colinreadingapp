@@ -1,0 +1,29 @@
+<div class="card">
+  <h2 style="margin-top: 0;">Statements</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Period</th>
+        <th>Status</th>
+        <th>Minutes Watched</th>
+        <th>Payout Amount (cents)</th>
+        <th>Stripe Transfer</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @statements.each do |statement| %>
+        <tr>
+          <td>
+            <%= link_to publisher_statement_path(statement) do %>
+              <%= statement.payout_period.start_date %> - <%= statement.payout_period.end_date %>
+            <% end %>
+          </td>
+          <td><%= statement.status %></td>
+          <td><%= statement.minutes_watched %></td>
+          <td><%= statement.payout_amount_cents %></td>
+          <td><%= statement.stripe_transfer_id.presence || "N/A" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
